@@ -1,0 +1,9 @@
+@startuml Social_Network_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "Пользователь", "Пользователь социальной сети")
+
+System(frontend, "Пользовательский веб-интерфейс", "Графический интерфейс для использования функций социальной сети")
+
+Rel(user, frontend, "Взаимодействие с соцсетью")
+@enduml
