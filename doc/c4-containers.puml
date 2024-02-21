@@ -1,0 +1,33 @@
+@startuml Social_Network_Containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!define ICONURL https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v2.4.0
+!includeurl ICONURL/common.puml
+!define DEVICONS https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/devicons
+!define DEVICONS2 https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/devicons2
+!include DEVICONS2/postgresql.puml
+!include DEVICONS2/react_original.puml
+!include DEVICONS2/rust.puml
+!include ICONURL/devicons/database.puml
+!include <cloudinsight/kafka>
+
+Person(user, "Пользователь", "Пользователь социальной сети")
+
+Container(frontend, "Пользовательский веб-интерфейс", "React", "Графический интерфейс для использования функций социальной сети", "react_original")
+Container(auth, "Главный сервис", "Rust", "Регистрация и аутентификация пользователей", "rust")
+Container(stat, "Сервис статистики", "Rust", "Подсчёт лайков и просмотров", "rust")
+Container(posts, "Сервис постов и комментариев", "Rust", "CRUD постов и комментариев", "rust")
+ContainerQueue(stat_queue, "Брокер", "kafka", "", "kafka")
+ContainerDb(auth_postgres, "", "Postgres", "Хранение аутентификационной информации", "postgresql")
+ContainerDb(posts_postgres, "", "Postgres", "Хранение постов и комментариев", "postgresql")
+ContainerDb(clickhouse, "", "Clickhouse", "Хранение статистики", "database")
+
+Rel_R(user, frontend, "Взаимодействие с соцсетью")
+Rel_R(frontend, auth, "Вызов методов", "REST")
+Rel(auth, stat_queue, "Отправка в очередь")
+Rel(stat_queue, stat, "Получение из очереди")
+Rel(auth, posts, "Запрос постов и комментариев", "gRPC")
+Rel(auth, stat, "Запрос статистики", "gRPC")
+Rel_R(auth, auth_postgres, "Сохраняет аутентификационную информацию")
+Rel(stat, clickhouse, "Сохраняет статистику")
+Rel(posts, posts_postgres, "Сохраняет посты и комментарии")
+@enduml
