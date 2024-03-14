@@ -1,6 +1,7 @@
 use axum::{Extension, Json};
 use serde_json::{json, Value};
 use sqlx::PgPool;
+use std::sync::Arc;
 
 use crate::{
     error::AppError,
@@ -8,8 +9,8 @@ use crate::{
 };
 
 pub async fn login(
+    Extension(pool): Extension<Arc<PgPool>>,
     Json(credentials): Json<CredentialsRaw>,
-    Extension(pool): Extension<PgPool>,
 ) -> Result<Json<Value>, AppError> {
     if credentials.login.is_empty() || credentials.password.is_empty() {
         return Err(AppError::MissingCredential);
@@ -19,7 +20,7 @@ pub async fn login(
         "SELECT login, password_hash FROM users where login = $1",
     )
     .bind(&credentials.login)
-    .fetch_optional(&pool)
+    .fetch_optional(pool.as_ref())
     .await
     .map_err(|err| {
         dbg!(err);
@@ -35,7 +36,7 @@ pub async fn login(
             sqlx::query("UPDATE users SET token = $1 WHERE login = $2")
                 .bind(&token)
                 .bind(user.login)
-                .execute(&pool)
+                .execute(pool.as_ref())
                 .await
                 .map_err(|err| {
                     dbg!(err);

@@ -4,6 +4,7 @@ mod models;
 
 use axum::{extract::Extension, routing::post, Router};
 use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -23,17 +24,14 @@ async fn main() {
         .route("/login", post(handlers::login))
         .route("/signup", post(handlers::signup))
         .route("/update", post(handlers::update))
-        .layer(Extension(pool));
+        .layer(Extension(Arc::new(pool)));
 
     let port = std::env::var("AUTH_PORT")
         .expect("set AUTH_PORT env variable")
         .parse::<u16>()
         .expect("invalid AUTH_PORT env variable");
-    let addr = std::net::SocketAddr::from(([0; 4], port));
-    dbg!(addr);
-
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .expect("failed to start server");
+        .unwrap();
+    axum::serve(listener, app).await.unwrap()
 }

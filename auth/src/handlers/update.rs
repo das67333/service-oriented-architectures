@@ -1,11 +1,12 @@
 use axum::{Extension, Json};
 use sqlx::PgPool;
+use std::sync::Arc;
 
 use crate::{error::AppError, models::UpdateInput};
 
 pub async fn update(
+    Extension(pool): Extension<Arc<PgPool>>,
     Json(data): Json<UpdateInput>,
-    Extension(pool): Extension<PgPool>,
 ) -> Result<(), AppError> {
     let token = data.token;
     if token.is_empty() {
@@ -14,7 +15,7 @@ pub async fn update(
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE token = $1")
         .bind(&token)
-        .fetch_one(&pool)
+        .fetch_one(pool.as_ref())
         .await
         .map_err(|err| {
             dbg!(err);
@@ -33,7 +34,7 @@ pub async fn update(
         .bind(data.email)
         .bind(data.phone)
         .bind(token)
-        .execute(&pool)
+        .execute(pool.as_ref())
         .await
         .map_err(|err| {
             dbg!(err);
