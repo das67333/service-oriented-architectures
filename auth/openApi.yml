@@ -120,6 +120,11 @@ paths:
                 token:
                   type: string
               required:
+                - first_name
+                - last_name
+                - birth_date
+                - email
+                - phone
                 - token
       responses:
         '200':
