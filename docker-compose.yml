@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  auth_db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+
+  auth:
+    build:
+      context: ./auth
+    # restart: on-failure:5
+    depends_on:
+      - auth_db
+    environment:
+      AUTH_DB_URL: postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db/${AUTH_DB_USER}
+      AUTH_PORT: ${AUTH_PORT}
+    ports:
+      - ${AUTH_PORT}:${AUTH_PORT}
