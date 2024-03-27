@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option go_package = "posts/protos";
+
+package service_posts;
+
+service ServicePosts {
+    rpc Func (Empty) returns (Int) {}
+}
+
+message Empty {}
+
+message Int {
+    int32 value = 1;
+}
