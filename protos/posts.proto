@@ -4,12 +4,70 @@ option go_package = "posts/protos";
 
 package service_posts;
 
+import "google/protobuf/timestamp.proto";
+
 service ServicePosts {
-    rpc Func (Empty) returns (Int) {}
+    rpc create_post(RequestCreate) returns (PostId) {}
+    rpc update_post(RequestUpdate) returns (ReturnCode) {}
+    rpc remove_post(RequestRemove) returns (ReturnCode) {}
+    rpc get_post(RequestGetOne) returns (OptionalPost) {}
+    rpc get_posts(RequestGetMany) returns (Posts) {}
 }
 
-message Empty {}
+message RequestCreate {
+    string login = 1;
+    string content = 2;
+}
 
-message Int {
-    int32 value = 1;
+message RequestUpdate {
+    string login = 1;
+    uint64 id = 2;
+    string content = 3;
+}
+
+message RequestRemove {
+    string login = 1;
+    uint64 id = 2;
+}
+
+message RequestGetOne {
+    string login = 1;
+    uint64 id = 2;
+}
+
+message RequestGetMany {
+    string login = 1;
+    uint64 start_id = 2;
+    uint64 count = 3;
+}
+
+message PostId {
+    uint64 id = 1;
+}
+
+enum Status {
+    Ok = 0;
+    PostNotFound = 1;
+    LoginMismatch = 2;
+}
+
+message ReturnCode {
+    Status code = 1;
+}
+
+message Post {
+    string login = 1;
+    uint64 id = 2;
+    google.protobuf.Timestamp created_at = 3;
+    string content = 4;
+}
+
+message OptionalPost {
+    Status code = 1;
+    optional Post post = 2;
+}
+
+message Posts {
+    Status code = 1;
+    repeated Post posts = 2;
 }

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  auth_db:
+    image: postgres:16-alpine
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+
+  posts_db:
+    image: postgres:16-alpine
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${POSTS_DB_USER}
+      POSTGRES_PASSWORD: ${POSTS_DB_PASSWORD}
+
+  auth: # Rust
+    build: ./auth
+    restart: on-failure
+    depends_on:
+      - auth_db
+      - posts
+    environment:
+      AUTH_PORT: ${AUTH_PORT}
+      POSTS_GRPC_PORT: ${POSTS_GRPC_PORT}
+      AUTH_DB_USER: ${AUTH_DB_USER}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      AUTH_DB_HOST: auth_db
+    ports:
+      - ${AUTH_PORT}:${AUTH_PORT}
+
+  posts: # Go
+    build: ./posts
+    restart: on-failure
+    depends_on:
+      - posts_db
+    environment:
+      POSTS_GRPC_PORT: ${POSTS_GRPC_PORT}
+      POSTS_DB_USER: ${POSTS_DB_USER}
+      POSTS_DB_PASSWORD: ${POSTS_DB_PASSWORD}
+      POSTS_DB_HOST: posts_db
