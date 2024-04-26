@@ -45,7 +45,7 @@ func (s *Server) UpdatePost(ctx context.Context, data *pb.RequestUpdate) (*pb.Re
 	var storedLogin string
 	err := s.db.Get(&storedLogin, "SELECT login FROM posts WHERE id = $1", data.Id)
 	if err != nil {
-		return nil, err
+		return &pb.ReturnCode{Code: pb.Status_PostNotFound}, nil
 	}
 	if storedLogin != data.Login {
 		return &pb.ReturnCode{Code: pb.Status_LoginMismatch}, nil
@@ -61,7 +61,7 @@ func (s *Server) RemovePost(ctx context.Context, data *pb.RequestRemove) (*pb.Re
 	var storedLogin string
 	err := s.db.Get(&storedLogin, "SELECT login FROM posts WHERE id = $1", data.Id)
 	if err != nil {
-		return nil, err
+		return &pb.ReturnCode{Code: pb.Status_PostNotFound}, nil
 	}
 	if storedLogin != data.Login {
 		return &pb.ReturnCode{Code: pb.Status_LoginMismatch}, nil
@@ -79,9 +79,6 @@ func (s *Server) GetPost(ctx context.Context, data *pb.RequestGetOne) (*pb.Optio
 	if err != nil {
 		return &pb.OptionalPost{Code: pb.Status_PostNotFound}, nil
 	}
-	if post.Login != data.Login {
-		return &pb.OptionalPost{Code: pb.Status_LoginMismatch}, nil
-	}
 	pb_post := pb.Post{
 		Login:     post.Login,
 		Id:        post.Id,
@@ -92,8 +89,13 @@ func (s *Server) GetPost(ctx context.Context, data *pb.RequestGetOne) (*pb.Optio
 }
 
 func (s *Server) GetPosts(ctx context.Context, data *pb.RequestGetMany) (*pb.Posts, error) {
+	var any_id uint64
+	err := s.db.QueryRow("SELECT id FROM posts WHERE login = $1 LIMIT 1", data.Login).Scan(&any_id)
+	if err != nil {
+		return &pb.Posts{Code: pb.Status_UserNotFound}, nil
+	}
 	var posts []*Post
-	err := s.db.Select(&posts, `
+	err = s.db.Select(&posts, `
 	SELECT *
 	FROM posts
 	WHERE id >= $1 AND login = $2

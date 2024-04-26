@@ -53,6 +53,7 @@ pub async fn update_post(
         Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => Ok(()),
+        _ => Err(AppError::InternalServerError),
     }
 }
 
@@ -74,25 +75,20 @@ pub async fn remove_post(
         Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => Ok(()),
+        _ => Err(AppError::InternalServerError),
     }
 }
 
 pub async fn get_post(
-    headers: HeaderMap,
     Path(id): Path<u64>,
-    Extension(pool): Extension<Arc<PgPool>>,
     Extension(client): Extension<Arc<Mutex<GrpcClient>>>,
 ) -> Result<Json<Value>, AppError> {
-    let arg = grpc::RequestGetOne {
-        login: find_user_by_token(pool.as_ref(), &headers).await?,
-        id,
-    };
+    let arg = grpc::RequestGetOne { id };
     let response = client.lock().await.get_post(arg).await.map_err(|err| {
         eprintln!("Error: {:?}", err);
         AppError::InternalServerError
     })?;
     match response.get_ref().code() {
-        Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => {
             let post = response.get_ref().post.as_ref().expect("broken invariant");
@@ -102,17 +98,16 @@ pub async fn get_post(
                 "content": post.content,
             })))
         }
+        _ => Err(AppError::InternalServerError),
     }
 }
 
 pub async fn get_posts(
-    headers: HeaderMap,
-    Extension(pool): Extension<Arc<PgPool>>,
     Extension(client): Extension<Arc<Mutex<GrpcClient>>>,
     Query(params): Query<restapi::PostsRange>,
 ) -> Result<Json<Value>, AppError> {
     let arg = grpc::RequestGetMany {
-        login: find_user_by_token(pool.as_ref(), &headers).await?,
+        login: params.login,
         start_id: params.start_id,
         count: params.count,
     };
@@ -121,15 +116,13 @@ pub async fn get_posts(
         AppError::InternalServerError
     })?;
     match response.get_ref().code() {
-        Status::LoginMismatch => Err(AppError::AccessDenied),
-        Status::PostNotFound => Err(AppError::PostNotFound),
+        Status::UserNotFound => Err(AppError::UserNotFound),
         Status::Ok => {
             let posts = response.get_ref().posts.clone();
             Ok(Json(json!(posts
                 .iter()
                 .map(|post| {
                     json!({
-                        "login": post.login,
                         "id": post.id,
                         "created_at": post.created_at.as_ref().expect("broken invariant").to_string(),
                         "content": post.content,
@@ -137,6 +130,7 @@ pub async fn get_posts(
                 })
                 .collect::<Vec<_>>())))
         }
+        _ => Err(AppError::InternalServerError),
     }
 }
 
@@ -153,6 +147,7 @@ mod restapi {
 
     #[derive(serde::Deserialize)]
     pub struct PostsRange {
+        pub login: String,
         pub start_id: u64,
         pub count: u64,
     }

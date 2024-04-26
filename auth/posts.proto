@@ -31,8 +31,7 @@ message RequestRemove {
 }
 
 message RequestGetOne {
-    string login = 1;
-    uint64 id = 2;
+    uint64 id = 1;
 }
 
 message RequestGetMany {
@@ -49,6 +48,7 @@ enum Status {
     Ok = 0;
     PostNotFound = 1;
     LoginMismatch = 2;
+    UserNotFound = 3;
 }
 
 message ReturnCode {
