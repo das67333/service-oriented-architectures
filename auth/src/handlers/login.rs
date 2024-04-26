@@ -16,11 +16,16 @@ pub async fn login(
         return Err(AppError::MissingCredential);
     }
 
+    let mut tx = pool.begin().await.map_err(|err| {
+        eprintln!("Error: {:?}", err);
+        AppError::InternalServerError
+    })?;
+
     let user = sqlx::query_as::<_, CredentialsHashed>(
         "SELECT login, password_hash FROM users where login = $1",
     )
     .bind(&credentials.login)
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(tx.as_mut())
     .await
     .map_err(|err| {
         eprintln!("Error: {:?}", err);
@@ -36,12 +41,16 @@ pub async fn login(
             sqlx::query("UPDATE users SET token = $1 WHERE login = $2")
                 .bind(&token)
                 .bind(user.login)
-                .execute(pool.as_ref())
+                .execute(tx.as_mut())
                 .await
                 .map_err(|err| {
                     eprintln!("Error: {:?}", err);
                     AppError::InternalServerError
                 })?;
+            tx.commit().await.map_err(|err| {
+                eprintln!("Error: {:?}", err);
+                AppError::InternalServerError
+            })?;
             Ok(Json(json!({ "token": token })))
         }
     } else {

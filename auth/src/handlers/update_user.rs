@@ -1,4 +1,4 @@
-use axum::{Extension, Json, http::HeaderMap};
+use axum::{http::HeaderMap, Extension, Json};
 use sqlx::PgPool;
 use std::sync::Arc;
 
@@ -9,7 +9,12 @@ pub async fn update_user(
     Extension(pool): Extension<Arc<PgPool>>,
     Json(data): Json<UpdateInput>,
 ) -> Result<(), AppError> {
-    let login = find_user_by_token(pool.as_ref(), &headers).await?;
+    let mut tx = pool.begin().await.map_err(|err| {
+        eprintln!("Error: {:?}", err);
+        AppError::InternalServerError
+    })?;
+
+    let login = find_user_by_token(tx.as_mut(), &headers).await?;
 
     sqlx::query(
         "
@@ -24,9 +29,13 @@ pub async fn update_user(
     .bind(data.email)
     .bind(data.phone)
     .bind(login)
-    .execute(pool.as_ref())
+    .execute(tx.as_mut())
     .await
     .map_err(|err| {
+        eprintln!("Error: {:?}", err);
+        AppError::InternalServerError
+    })?;
+    tx.commit().await.map_err(|err| {
         eprintln!("Error: {:?}", err);
         AppError::InternalServerError
     })?;

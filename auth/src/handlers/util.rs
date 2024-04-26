@@ -28,7 +28,10 @@ pub async fn try_create_table(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn find_user_by_token(pool: &PgPool, headers: &HeaderMap) -> Result<String, AppError> {
+pub async fn find_user_by_token<'a>(
+    e: impl sqlx::PgExecutor<'a>,
+    headers: &HeaderMap,
+) -> Result<String, AppError> {
     let token = headers
         .get("authorization")
         .ok_or(AppError::InvalidToken)?
@@ -39,7 +42,7 @@ pub async fn find_user_by_token(pool: &PgPool, headers: &HeaderMap) -> Result<St
     }
     let users = sqlx::query_as::<_, Login>("SELECT login FROM users WHERE token = $1 LIMIT 2")
         .bind(token)
-        .fetch_all(pool)
+        .fetch_all(e)
         .await
         .map_err(|err| {
             eprintln!("Error: {:?}", err);
