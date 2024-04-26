@@ -15,7 +15,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Server is used to implement helloworld.GreeterServer.
 type Server struct {
 	pb.UnimplementedServicePostsServer
 	db sqlx.DB

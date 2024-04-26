@@ -3,6 +3,12 @@ info:
   title: auth service API
   version: '0.1.0'
 
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
 paths:
   /signup:
     post:
@@ -85,16 +91,11 @@ paths:
               schema:
                 type: string
 
-  /update:
+  /profile:
     put:
       summary: Update personal information
-      parameters:
-        - in: header
-          name: Authorization
-          required: true
-          description: Bearer token
-          schema:
-            type: string
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -134,9 +135,11 @@ paths:
               schema:
                 type: string
 
-  /create_post:
+  /post:
     post:
       summary: Create new post
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -173,7 +176,7 @@ paths:
               schema:
                 type: string
 
-  /update_post/{id}:
+  /post/{id}:
     put:
       summary: Update post by id
       parameters:
@@ -182,12 +185,8 @@ paths:
           required: true
           schema:
             type: integer
-        - in: header
-          name: Authorization
-          required: true
-          description: Bearer token
-          schema:
-            type: string
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -221,7 +220,6 @@ paths:
               schema:
                 type: string
 
-  /remove_post/{id}:
     delete:
       summary: Delete post by id
       parameters:
@@ -230,12 +228,8 @@ paths:
           required: true
           schema:
             type: integer
-        - in: header
-          name: Authorization
-          required: true
-          description: Bearer token
-          schema:
-            type: string
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: OK
@@ -258,7 +252,6 @@ paths:
               schema:
                 type: string
 
-  /get_post/{id}:
     get:
       summary: Get post by id
       parameters:
@@ -267,12 +260,8 @@ paths:
           required: true
           schema:
             type: integer
-        - in: header
-          name: Authorization
-          required: true
-          description: Bearer token
-          schema:
-            type: string
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: OK
@@ -310,16 +299,10 @@ paths:
               schema:
                 type: string
 
-  /get_posts:
+  /posts:
     get:
       summary: Get a page of posts
       parameters:
-        - in: header
-          name: Authorization
-          required: true
-          description: Bearer token
-          schema:
-            type: string
         - in: query
           name: start_id
           schema:
@@ -330,6 +313,8 @@ paths:
           schema:
             type: integer
           description: Number of posts
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: OK
