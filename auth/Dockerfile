@@ -1,11 +1,8 @@
-FROM rust:1.76-slim
+FROM rust:1.77-slim
 
 WORKDIR /auth
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq-dev && \
-    apt-get clean
-COPY . .
-RUN cargo build && \
-    mv target/debug/auth . && \
-    cargo clean
+COPY src ./src
+COPY Cargo.toml Cargo.lock build.rs posts.proto ./
+COPY protoc-26.1-linux-x86_64 /usr/local/
+RUN cargo build --release && cp target/release/auth . && cargo clean
 CMD ["./auth"]

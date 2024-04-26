@@ -4,12 +4,10 @@ info:
   version: '0.1.0'
 
 components:
-  schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
 
 paths:
   /signup:
@@ -32,22 +30,18 @@ paths:
       responses:
         '200':
           description: OK
-          content:
-            application/json:
-              schema:
-                type: object
         '400':
-          description: Missing credential or User already exists
+          description: Missing credential or user already exists
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
         '500':
           description: Internal server error
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
 
   /login:
     post:
@@ -79,27 +73,29 @@ paths:
                 required:
                   - token
         '400':
-          description: Missing credential or User does not exist
+          description: Missing credential or user does not exist
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
         '401':
           description: Wrong credential
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
         '500':
           description: Internal server error
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
 
-  /update:
-    post:
+  /profile:
+    put:
       summary: Update personal information
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -117,15 +113,44 @@ paths:
                   type: string
                 phone:
                   type: string
-                token:
-                  type: string
               required:
                 - first_name
                 - last_name
                 - birth_date
                 - email
                 - phone
-                - token
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /post:
+    post:
+      summary: Create new post
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+              required:
+                - content
       responses:
         '200':
           description: OK
@@ -133,15 +158,201 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  post_id:
+                    type: string
+                required:
+                  - post_id
         '400':
           description: Invalid token
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: string
         '500':
           description: Internal server error
           content:
+            text/plain:
+              schema:
+                type: string
+
+  /post/{id}:
+    put:
+      summary: Update post by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+              required:
+                - content
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Access denied
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+    delete:
+      summary: Delete post by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Access denied
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+    get:
+      summary: Get post by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  login:
+                    type: string
+                  created_at:
+                    type: string
+                  content:
+                    type: string
+                required:
+                  - login
+                  - created_at
+                  - content
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Access denied
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /posts:
+    get:
+      summary: Get a page of posts
+      parameters:
+        - in: query
+          name: start_id
+          schema:
+            type: string
+          description: Id of the oldest post
+        - in: query
+          name: count
+          schema:
+            type: integer
+          description: Number of posts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    login:
+                      type: string
+                    id:
+                      type: string
+                    created_at:
+                      type: string
+                    content:
+                      type: string
+                  required:
+                    - login
+                    - id
+                    - created_at
+                    - content
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '403':
+          description: Access denied
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string

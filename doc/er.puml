@@ -2,30 +2,30 @@
 
 package "Сущности социальной сети" {
     entity "Пользователь" as User {
-        * user_id : int <<generated>>
+        * login : varchar
         --
-        * username : varchar(255)
-        * password_md5 : varchar(64)
-    }
-    entity "Стена с постами" as Wall {
-        * wall_id : int <<generated>>
-        --
-        * user_id : int <<FK>>
+        * password_hash : varchar
+        first_name : varchar
+        last_name : varchar
+        birth_date : date
+        email : varchar
+        phone : varchar
+        token : varchar
     }
     entity "Пост" as Post {
         * post_id : int <<generated>>
         --
-        * content : text
+        * content : varchar
         * created_at : datetime
-        * wall_id : int <<FK>>
+        * login : varchar <<FK>>
     }
     entity "Комментарий" as Comment {
         * comment_id : int <<generated>>
         --
-        * content : text
+        * content : varchar
         * created_at : datetime
         * post_id : int <<FK>>
-        * user_id : int <<FK>>
+        * login : varchar <<FK>>
         * comment_level: int
         prev_comment_id: int <<FK>>
     }
@@ -38,8 +38,7 @@ package "Сущности социальной сети" {
     }
 }
 
-User --o| Wall
-Wall --o{ Post
+User --o{ Post
 Post --o{ Comment
 Post --|| Statistics
 Comment |o-- Comment

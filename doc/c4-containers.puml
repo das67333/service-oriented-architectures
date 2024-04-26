@@ -6,6 +6,7 @@
 !define DEVICONS2 https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/devicons2
 !include DEVICONS2/postgresql.puml
 !include DEVICONS2/react_original.puml
+!include DEVICONS2/go.puml
 !include DEVICONS2/rust.puml
 !include ICONURL/devicons/database.puml
 !include <cloudinsight/kafka>
@@ -15,7 +16,7 @@ Person(user, "Пользователь", "Пользователь социал�
 Container(frontend, "Пользовательский веб-интерфейс", "React", "Графический интерфейс для использования функций социальной сети", "react_original")
 Container(auth, "Главный сервис", "Rust", "Регистрация и аутентификация пользователей", "rust")
 Container(stat, "Сервис статистики", "Rust", "Подсчёт лайков и просмотров", "rust")
-Container(posts, "Сервис постов и комментариев", "Rust", "CRUD постов и комментариев", "rust")
+Container(posts, "Сервис постов и комментариев", "Go", "CRUD постов и комментариев", "go")
 ContainerQueue(stat_queue, "Брокер", "kafka", "", "kafka")
 ContainerDb(auth_postgres, "", "Postgres", "Хранение аутентификационной информации", "postgresql")
 ContainerDb(posts_postgres, "", "Postgres", "Хранение постов и комментариев", "postgresql")

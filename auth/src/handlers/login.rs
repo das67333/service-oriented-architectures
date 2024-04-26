@@ -23,7 +23,7 @@ pub async fn login(
     .fetch_optional(pool.as_ref())
     .await
     .map_err(|err| {
-        dbg!(err);
+        eprintln!("Error: {:?}", err);
         AppError::InternalServerError
     })?;
 
@@ -39,7 +39,7 @@ pub async fn login(
                 .execute(pool.as_ref())
                 .await
                 .map_err(|err| {
-                    dbg!(err);
+                    eprintln!("Error: {:?}", err);
                     AppError::InternalServerError
                 })?;
             Ok(Json(json!({ "token": token })))

@@ -1,5 +1,4 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
-use serde_json::json;
+use axum::{http::StatusCode, response::IntoResponse};
 
 #[derive(Debug)]
 pub enum AppError {
@@ -10,6 +9,8 @@ pub enum AppError {
     TokenCreation,
     UserDoesNotExist,
     UserAlreadyExits,
+    PostNotFound,
+    AccessDenied,
 }
 
 impl IntoResponse for AppError {
@@ -19,13 +20,15 @@ impl IntoResponse for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "an internal server error occured",
             ),
-            Self::InvalidToken => (StatusCode::BAD_REQUEST, "invalid token"),
-            Self::MissingCredential => (StatusCode::BAD_REQUEST, "missing credential"),
-            Self::WrongCredential => (StatusCode::UNAUTHORIZED, "wrong credentials"),
-            Self::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "failed to create token"),
+            Self::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
+            Self::MissingCredential => (StatusCode::BAD_REQUEST, "Missing credential"),
+            Self::WrongCredential => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
+            Self::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token"),
             Self::UserDoesNotExist => (StatusCode::UNAUTHORIZED, "User does not exist"),
             Self::UserAlreadyExits => (StatusCode::BAD_REQUEST, "User already exists"),
+            Self::PostNotFound => (StatusCode::NOT_FOUND, "Post not found"),
+            Self::AccessDenied => (StatusCode::FORBIDDEN, "Access denied"),
         };
-        (status, Json(json!({ "error": err_msg }))).into_response()
+        (status, err_msg).into_response()
     }
 }

@@ -22,7 +22,7 @@ pub async fn signup(
     .fetch_optional(pool.as_ref())
     .await
     .map_err(|err| {
-        dbg!(err);
+        eprintln!("Error: {:?}", err);
         AppError::InternalServerError
     })?;
 
@@ -36,7 +36,7 @@ pub async fn signup(
         .execute(pool.as_ref())
         .await
         .map_err(|err| {
-            dbg!(err);
+            eprintln!("Error: {:?}", err);
             AppError::InternalServerError
         })?;
     if result.rows_affected() == 0 {
