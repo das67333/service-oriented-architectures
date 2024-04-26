@@ -72,7 +72,7 @@ impl App {
 }
 
 async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
-    const TIMEOUT: Duration = Duration::from_millis(100);
+    const TIMEOUT: Duration = Duration::from_millis(1000);
 
     let addr = format!("http://posts:{}", port);
     let channel = loop {
@@ -98,7 +98,7 @@ async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
 }
 
 pub async fn create_db_client(db_url: &str) -> sqlx::PgPool {
-    const TIMEOUT: Duration = Duration::from_millis(100);
+    const TIMEOUT: Duration = Duration::from_millis(1000);
     const MAX_CONNECTIONS: u32 = 5;
     loop {
         match PgPoolOptions::new()
