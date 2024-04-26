@@ -9,6 +9,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
+const INITIAL_TIMEOUT: Duration = Duration::from_millis(1_000);
+const TIMEOUT_MULTIPLIER: f64 = 1.2;
+
 pub struct App {
     db_url: String,
     posts_grpc_port: u16,
@@ -72,7 +75,7 @@ impl App {
 }
 
 async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
-    const TIMEOUT: Duration = Duration::from_millis(1000);
+    let mut timeout = INITIAL_TIMEOUT;
 
     let addr = format!("http://posts:{}", port);
     let channel = loop {
@@ -87,10 +90,12 @@ async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
             }
             Err(err) => {
                 eprintln!(
-                    "Cannot connect to gRPC server: {}. Attempting to reconnect...",
-                    err
+                    "Cannot connect to gRPC server: \"{}\". Reconnecting in {:.1} seconds...",
+                    err,
+                    timeout.as_secs_f64()
                 );
-                sleep(TIMEOUT).await;
+                sleep(timeout).await;
+                timeout = Duration::from_secs_f64(timeout.as_secs_f64() * TIMEOUT_MULTIPLIER);
             }
         }
     };
@@ -98,7 +103,8 @@ async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
 }
 
 pub async fn create_db_client(db_url: &str) -> sqlx::PgPool {
-    const TIMEOUT: Duration = Duration::from_millis(1000);
+    let mut timeout = INITIAL_TIMEOUT;
+
     const MAX_CONNECTIONS: u32 = 5;
     loop {
         match PgPoolOptions::new()
@@ -112,10 +118,12 @@ pub async fn create_db_client(db_url: &str) -> sqlx::PgPool {
             }
             Err(err) => {
                 eprintln!(
-                    "Cannot connect to database: {}. Attempting to reconnect...",
-                    err
+                    "Cannot connect to database: \"{}\". Reconnecting in {:.1} seconds...",
+                    err,
+                    timeout.as_secs_f64()
                 );
-                sleep(TIMEOUT).await;
+                sleep(timeout).await;
+                timeout = Duration::from_secs_f64(timeout.as_secs_f64() * TIMEOUT_MULTIPLIER);
             }
         }
     }
