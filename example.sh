@@ -64,3 +64,6 @@ echo
 echo -n "Receive all posts of non-existent user: "
 curl -s -X GET "$HOST/posts?login=alien&start_id=1&count=100"
 echo
+
+curl -s -X POST "$HOST/post/$POST_ID/like" -H "$ST"
+curl -s -X POST "$HOST/post/$POST_ID/view" -H "$ST"

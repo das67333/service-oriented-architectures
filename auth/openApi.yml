@@ -376,12 +376,6 @@ paths:
             text/plain:
               schema:
                 type: string
-        '500':
-          description: Internal server error
-          content:
-            text/plain:
-              schema:
-                type: string
 
   /like:
     post:
@@ -399,12 +393,6 @@ paths:
           description: OK
         '400':
           description: Invalid token
-          content:
-            text/plain:
-              schema:
-                type: string
-        '500':
-          description: Internal server error
           content:
             text/plain:
               schema:

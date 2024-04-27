@@ -1,7 +1,10 @@
 use axum::http::HeaderMap;
 use sqlx::{PgPool, Result};
 
-use crate::{error::AppError, models::Login};
+use crate::{
+    error::{internal_server_error, AppError},
+    models::Login,
+};
 
 pub async fn try_create_table(pool: &PgPool) -> Result<()> {
     // sqlx::query("DROP TABLE IF EXISTS users")
@@ -44,10 +47,7 @@ pub async fn find_user_by_token<'a>(
         .bind(token)
         .fetch_all(e)
         .await
-        .map_err(|err| {
-            eprintln!("Error: {:?}", err);
-            AppError::InternalServerError
-        })?;
+        .map_err(internal_server_error)?;
 
     if users.is_empty() || users.len() > 1 {
         // >1 means token collision, user should request new token

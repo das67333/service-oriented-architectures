@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 use crate::{
-    error::AppError,
+    error::{internal_server_error, AppError},
     handlers::util::find_user_by_token,
     models::UpdateProfileInput,
     models::{CredentialsHashed, CredentialsRaw},
@@ -18,10 +18,7 @@ pub async fn signup(
         return Err(AppError::MissingCredential);
     }
 
-    let mut tx = pool.begin().await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let mut tx = pool.begin().await.map_err(internal_server_error)?;
 
     let user = sqlx::query_as::<_, CredentialsHashed>(
         "SELECT login, password_hash FROM users WHERE login = $1",
@@ -29,33 +26,20 @@ pub async fn signup(
     .bind(&credentials.login)
     .fetch_optional(tx.as_mut())
     .await
-    .map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    .map_err(internal_server_error)?;
 
     if user.is_some() {
         return Err(AppError::UserAlreadyExits);
     }
 
-    let result = sqlx::query("INSERT INTO users (login, password_hash) values ($1, $2)")
+    sqlx::query("INSERT INTO users (login, password_hash) values ($1, $2)")
         .bind(credentials.login)
         .bind(bcrypt::hash(credentials.password, 10).unwrap())
         .execute(tx.as_mut())
         .await
-        .map_err(|err| {
-            eprintln!("Error: {:?}", err);
-            AppError::InternalServerError
-        })?;
-    tx.commit().await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
-    if result.rows_affected() == 0 {
-        Err(AppError::InternalServerError)
-    } else {
-        Ok(())
-    }
+        .map_err(internal_server_error)?;
+    tx.commit().await.map_err(internal_server_error)?;
+    Ok(())
 }
 
 pub async fn login(
@@ -66,10 +50,7 @@ pub async fn login(
         return Err(AppError::MissingCredential);
     }
 
-    let mut tx = pool.begin().await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let mut tx = pool.begin().await.map_err(internal_server_error)?;
 
     let user = sqlx::query_as::<_, CredentialsHashed>(
         "SELECT login, password_hash FROM users where login = $1",
@@ -77,10 +58,7 @@ pub async fn login(
     .bind(&credentials.login)
     .fetch_optional(tx.as_mut())
     .await
-    .map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    .map_err(internal_server_error)?;
 
     if let Some(user) = user {
         if !bcrypt::verify(credentials.password, &user.password_hash).unwrap() {
@@ -93,14 +71,8 @@ pub async fn login(
                 .bind(user.login)
                 .execute(tx.as_mut())
                 .await
-                .map_err(|err| {
-                    eprintln!("Error: {:?}", err);
-                    AppError::InternalServerError
-                })?;
-            tx.commit().await.map_err(|err| {
-                eprintln!("Error: {:?}", err);
-                AppError::InternalServerError
-            })?;
+                .map_err(internal_server_error)?;
+            tx.commit().await.map_err(internal_server_error)?;
             Ok(Json(json!({ "token": token })))
         }
     } else {
@@ -113,11 +85,7 @@ pub async fn update_user(
     Extension(pool): Extension<Arc<PgPool>>,
     Json(data): Json<UpdateProfileInput>,
 ) -> Result<(), AppError> {
-    let mut tx = pool.begin().await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
-
+    let mut tx = pool.begin().await.map_err(internal_server_error)?;
     let login = find_user_by_token(tx.as_mut(), &headers).await?;
 
     sqlx::query(
@@ -135,13 +103,7 @@ pub async fn update_user(
     .bind(login)
     .execute(tx.as_mut())
     .await
-    .map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
-    tx.commit().await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    .map_err(internal_server_error)?;
+    tx.commit().await.map_err(internal_server_error)?;
     Ok(())
 }

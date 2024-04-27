@@ -7,8 +7,13 @@ use axum::{
 use rdkafka::{producer::FutureProducer, ClientConfig};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration};
+use tokio::{
+    sync::Mutex,
+    time::{sleep, Duration},
+};
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
+use tracing_subscriber::EnvFilter;
 
 const INITIAL_TIMEOUT: Duration = Duration::from_millis(1_000);
 const TIMEOUT_MULTIPLIER: f64 = 1.2;
@@ -22,6 +27,12 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::from_default_env())
+            .with_target(false)
+            .compact()
+            .init();
+
         let [db_user, db_password, db_host, posts_grpc_port, posts_grpc_host, stats_kafka_host, stats_kafka_port, main_port] =
             [
                 "AUTH_DB_USER",
@@ -33,10 +44,10 @@ impl App {
                 "STATS_KAFKA_PORT",
                 "AUTH_PORT",
             ]
-            .map(|var| std::env::var(var).expect(&format!("set {} env variable", var)));
+            .map(|var| std::env::var(var).unwrap_or_else(|_| panic!("set {} env variable", var)));
         let main_port = main_port
             .parse::<u16>()
-            .expect(&format!("invalid AUTH_PORT env variable"));
+            .expect("invalid AUTH_PORT env variable");
 
         let db_url = format!("postgres://{db_user}:{db_password}@{db_host}/{db_user}");
         let posts_grpc_url = format!("http://{posts_grpc_host}:{posts_grpc_port}");
@@ -75,7 +86,12 @@ impl App {
             .fallback(handlers::fallback)
             .layer(Extension(Arc::new(users_db_conn_pool)))
             .layer(Extension(Arc::new(Mutex::new(posts_grpc_client))))
-            .layer(Extension(kafka_producer));
+            .layer(Extension(kafka_producer))
+            .layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                    .on_response(DefaultOnResponse::new().level(Level::INFO)),
+            );
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.main_port))
             .await
@@ -95,11 +111,11 @@ async fn create_grpc_client(grpc_url: &str) -> handlers::GrpcClient {
             .await
         {
             Ok(pool) => {
-                eprintln!("Connected to gRPC server");
+                tracing::info!("Connected to gRPC server");
                 break pool;
             }
             Err(err) => {
-                eprintln!(
+                tracing::warn!(
                     "Cannot connect to gRPC server: \"{}\". Reconnecting in {:.1} seconds...",
                     err,
                     timeout.as_secs_f64()
@@ -123,11 +139,11 @@ async fn create_db_client(db_url: &str) -> sqlx::PgPool {
             .await
         {
             Ok(pool) => {
-                eprintln!("Connected to database");
+                tracing::info!("Connected to database");
                 break pool;
             }
             Err(err) => {
-                eprintln!(
+                tracing::warn!(
                     "Cannot connect to database: \"{}\". Reconnecting in {:.1} seconds...",
                     err,
                     timeout.as_secs_f64()

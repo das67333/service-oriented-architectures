@@ -14,6 +14,11 @@ pub enum AppError {
     UserNotFound,
 }
 
+pub fn internal_server_error(err: impl std::fmt::Debug) -> AppError {
+    tracing::error!("Error: {:?}", err);
+    AppError::InternalServerError
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let (status, err_msg) = match self {
