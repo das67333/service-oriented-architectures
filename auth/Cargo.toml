@@ -12,7 +12,7 @@ prost = "0.12"
 prost-types = "0.12"
 # веб-фреймворк
 axum = "0.7.4"
-axum-extra = { version =  "0.9.3", features = ["query"] }
+axum-extra = { version = "0.9.3", features = ["query"] }
 # десериализация
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -20,9 +20,16 @@ chrono = { version = "0.4", features = ["serde"] }
 # async runtime
 tokio = { version = "1.36", features = ["full"] }
 # compile-time checked async SQL queries
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "json", "chrono"] }
+sqlx = { version = "0.7", features = [
+    "runtime-tokio",
+    "postgres",
+    "json",
+    "chrono",
+] }
 # создание токенов
 bcrypt = "0.15"
+# клиент kafka
+rdkafka = "0.36"
 
 [build-dependencies]
 tonic-build = "0.11"

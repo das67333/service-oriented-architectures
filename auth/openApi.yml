@@ -354,3 +354,58 @@ paths:
             text/plain:
               schema:
                 type: string
+
+
+  /view:
+    post:
+      summary: Like a post by its id
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+          description: Id of the post
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /like:
+    post:
+      summary: Like a post by its id
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+          description: Id of the post
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string

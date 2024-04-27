@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use rdkafka::{producer::FutureProducer, ClientConfig};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,32 +15,37 @@ const TIMEOUT_MULTIPLIER: f64 = 1.2;
 
 pub struct App {
     db_url: String,
-    posts_grpc_port: u16,
+    posts_grpc_url: String,
+    kafka_url: String,
     main_port: u16,
 }
 
 impl App {
     pub fn new() -> Self {
-        let db_user = std::env::var("AUTH_DB_USER").expect("set AUTH_DB_USER env variable");
-        let db_password =
-            std::env::var("AUTH_DB_PASSWORD").expect("set AUTH_DB_PASSWORD env variable");
-        let db_host = std::env::var("AUTH_DB_HOST").expect("set AUTH_DB_HOST env variable");
+        let [db_user, db_password, db_host, posts_grpc_port, posts_grpc_host, stats_kafka_host, stats_kafka_port, main_port] =
+            [
+                "AUTH_DB_USER",
+                "AUTH_DB_PASSWORD",
+                "AUTH_DB_HOST",
+                "POSTS_GRPC_PORT",
+                "POSTS_GRPC_HOST",
+                "STATS_KAFKA_HOST",
+                "STATS_KAFKA_PORT",
+                "AUTH_PORT",
+            ]
+            .map(|var| std::env::var(var).expect(&format!("set {} env variable", var)));
+        let main_port = main_port
+            .parse::<u16>()
+            .expect(&format!("invalid AUTH_PORT env variable"));
 
         let db_url = format!("postgres://{db_user}:{db_password}@{db_host}/{db_user}");
-
-        let posts_grpc_port = std::env::var("POSTS_GRPC_PORT")
-            .expect("set POSTS_GRPC_PORT env variable")
-            .parse::<u16>()
-            .expect("invalid POSTS_GRPC_PORT env variable");
-
-        let main_port = std::env::var("AUTH_PORT")
-            .expect("set AUTH_PORT env variable")
-            .parse::<u16>()
-            .expect("invalid AUTH_PORT env variable");
+        let posts_grpc_url = format!("http://{posts_grpc_host}:{posts_grpc_port}");
+        let kafka_url = format!("{stats_kafka_host}:{stats_kafka_port}");
 
         Self {
             db_url,
-            posts_grpc_port,
+            posts_grpc_url,
+            kafka_url,
             main_port,
         }
     }
@@ -51,7 +57,9 @@ impl App {
             .await
             .expect("Cannot create table");
 
-        let posts_grpc_client = create_grpc_client(self.posts_grpc_port).await;
+        let posts_grpc_client = create_grpc_client(&self.posts_grpc_url).await;
+
+        let kafka_producer = create_kafka_producer(&self.kafka_url).await;
 
         let app = Router::new()
             .route("/login", post(handlers::login))
@@ -62,9 +70,12 @@ impl App {
             .route("/post/:id", delete(handlers::remove_post))
             .route("/post/:id", get(handlers::get_post))
             .route("/posts", get(handlers::get_posts))
+            .route("/post/:id/view", post(handlers::view_post))
+            .route("/post/:id/like", post(handlers::like_post))
             .fallback(handlers::fallback)
             .layer(Extension(Arc::new(users_db_conn_pool)))
-            .layer(Extension(Arc::new(Mutex::new(posts_grpc_client))));
+            .layer(Extension(Arc::new(Mutex::new(posts_grpc_client))))
+            .layer(Extension(kafka_producer));
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.main_port))
             .await
@@ -74,12 +85,11 @@ impl App {
     }
 }
 
-async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
+async fn create_grpc_client(grpc_url: &str) -> handlers::GrpcClient {
     let mut timeout = INITIAL_TIMEOUT;
 
-    let addr = format!("http://posts:{}", port);
     let channel = loop {
-        match tonic::transport::Channel::from_shared(addr.clone())
+        match tonic::transport::Channel::from_shared(grpc_url.to_owned())
             .expect("Can't parse address")
             .connect()
             .await
@@ -102,7 +112,7 @@ async fn create_grpc_client(port: u16) -> handlers::GrpcClient {
     handlers::GrpcClient::new(channel)
 }
 
-pub async fn create_db_client(db_url: &str) -> sqlx::PgPool {
+async fn create_db_client(db_url: &str) -> sqlx::PgPool {
     let mut timeout = INITIAL_TIMEOUT;
 
     const MAX_CONNECTIONS: u32 = 5;
@@ -127,4 +137,13 @@ pub async fn create_db_client(db_url: &str) -> sqlx::PgPool {
             }
         }
     }
+}
+
+async fn create_kafka_producer(kafka_url: &str) -> FutureProducer {
+    let producer: FutureProducer = ClientConfig::new()
+        .set("bootstrap.servers", kafka_url)
+        .set("message.timeout.ms", "5000")
+        .create()
+        .expect("Failed to create Kafka producer");
+    producer
 }
