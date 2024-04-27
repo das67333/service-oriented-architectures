@@ -25,10 +25,8 @@ func connectDb() sqlx.DB {
 	const TIMEOUT_MULTIPLIER = 1.2
 
 	dsn := fmt.Sprintf(
-		"user=%s password=%s host=%s sslmode=disable",
-		os.Getenv("POSTS_DB_USER"),
+		"user=postgres password=%s host=posts_db sslmode=disable",
 		os.Getenv("POSTS_DB_PASSWORD"),
-		os.Getenv("POSTS_DB_HOST"),
 	)
 	var db *sqlx.DB
 	timeout := INITIAL_TIMEOUT
@@ -51,8 +49,7 @@ func connectDb() sqlx.DB {
 }
 
 func runGrpcServer(db *sqlx.DB) {
-	port := os.Getenv("POSTS_GRPC_PORT")
-	lis, err := net.Listen("tcp", ":"+port)
+	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

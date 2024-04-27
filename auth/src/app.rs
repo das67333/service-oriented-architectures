@@ -33,31 +33,14 @@ impl App {
             .compact()
             .init();
 
-        let [db_user, db_password, db_host, posts_grpc_port, posts_grpc_host, stats_kafka_host, stats_kafka_port, main_port] =
-            [
-                "AUTH_DB_USER",
-                "AUTH_DB_PASSWORD",
-                "AUTH_DB_HOST",
-                "POSTS_GRPC_PORT",
-                "POSTS_GRPC_HOST",
-                "STATS_KAFKA_HOST",
-                "STATS_KAFKA_PORT",
-                "AUTH_PORT",
-            ]
-            .map(|var| std::env::var(var).unwrap_or_else(|_| panic!("set {} env variable", var)));
-        let main_port = main_port
-            .parse::<u16>()
-            .expect("invalid AUTH_PORT env variable");
-
-        let db_url = format!("postgres://{db_user}:{db_password}@{db_host}/{db_user}");
-        let posts_grpc_url = format!("http://{posts_grpc_host}:{posts_grpc_port}");
-        let kafka_url = format!("{stats_kafka_host}:{stats_kafka_port}");
+        let db_password =
+            std::env::var("AUTH_DB_PASSWORD").expect("set AUTH_DB_PASSWORD env variable");
 
         Self {
-            db_url,
-            posts_grpc_url,
-            kafka_url,
-            main_port,
+            db_url: format!("postgres://postgres:{db_password}@auth_db/postgres"),
+            posts_grpc_url: "http://posts:50051".to_owned(),
+            kafka_url: "stats_kafka:9092".to_owned(),
+            main_port: 3000,
         }
     }
 
