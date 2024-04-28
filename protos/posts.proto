@@ -64,7 +64,7 @@ message Post {
 
 message OptionalPost {
     Status code = 1;
-    optional Post post = 2;
+    Post post = 2;
 }
 
 message Posts {
