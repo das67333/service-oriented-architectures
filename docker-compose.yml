@@ -16,7 +16,7 @@ services:
     environment:
       ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: "WARN"
       ZOOKEEPER_CLIENT_PORT: 2181
-  
+
   stats_kafka:
     image: confluentinc/cp-kafka:7.6.1
     depends_on:
@@ -35,10 +35,9 @@ services:
     image: clickhouse/clickhouse-server:24.3-alpine
     depends_on:
       - stats_kafka
-    ports:
-      - 18123:8123
 
-  auth: # Rust
+  # Rust
+  auth:
     build: ./auth
     depends_on:
       - auth_db
@@ -50,9 +49,20 @@ services:
     ports:
       - ${AUTH_PORT}:3000
 
-  posts: # Go
+  # Go
+  posts:
     build: ./posts
     depends_on:
       - posts_db
     environment:
       POSTS_DB_PASSWORD: ${POSTS_DB_PASSWORD}
+
+  # Python
+  stats:
+    build: ./stats
+    depends_on:
+      - stats_clickhouse
+    environment:
+      STATS_PORT: ${STATS_PORT}
+    ports:
+      - ${STATS_PORT}:3000

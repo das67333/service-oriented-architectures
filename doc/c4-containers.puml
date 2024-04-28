@@ -25,7 +25,7 @@ ContainerDb(clickhouse, "", "Clickhouse", "Хранение статистики
 Rel_R(user, frontend, "Взаимодействие с соцсетью")
 Rel_R(frontend, auth, "Вызов методов", "REST")
 Rel(auth, stat_queue, "Отправка в очередь")
-Rel(stat_queue, stat, "Получение из очереди")
+Rel(stat_queue, clickhouse, "Получение из очереди")
 Rel(auth, posts, "Запрос постов и комментариев", "gRPC")
 Rel(auth, stat, "Запрос статистики", "gRPC")
 Rel_R(auth, auth_postgres, "Сохраняет аутентификационную информацию")

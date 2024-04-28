@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HOST=localhost:3000
+HOST=localhost:3001
 SJ="Content-Type: application/json"
 
 LOGIN=ben
@@ -65,5 +65,11 @@ echo -n "Receive all posts of non-existent user: "
 curl -s -X GET "$HOST/posts?login=alien&start_id=1&count=100"
 echo
 
+curl -s -X POST "$HOST/post/$((POST_ID-1))/view" -H "$ST"
+echo "Viewed post with ID=$((POST_ID-1))"
+
 curl -s -X POST "$HOST/post/$POST_ID/like" -H "$ST"
-curl -s -X POST "$HOST/post/$POST_ID/view" -H "$ST"
+echo "Liked post with ID=$POST_ID"
+
+echo -n "Check stats service response: "
+curl -s -X GET http://localhost:3101/ -w "{http_code: %{http_code}}"
