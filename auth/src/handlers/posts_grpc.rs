@@ -5,7 +5,10 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{error::AppError, handlers::util::find_user_by_token};
+use crate::{
+    error::{internal_server_error, AppError},
+    handlers::util::find_user_by_token,
+};
 
 mod grpc {
     tonic::include_proto!("service_posts");
@@ -25,10 +28,12 @@ pub async fn create_post(
         login: find_user_by_token(pool.as_ref(), &headers).await?,
         content: data.content,
     };
-    let response = client.lock().await.create_post(arg).await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let response = client
+        .lock()
+        .await
+        .create_post(arg)
+        .await
+        .map_err(internal_server_error)?;
     let post_id = response.get_ref().id;
     Ok(Json(json!({ "post_id": post_id })))
 }
@@ -45,14 +50,17 @@ pub async fn update_post(
         id,
         content: data.content,
     };
-    let response = client.lock().await.update_post(arg).await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let response = client
+        .lock()
+        .await
+        .update_post(arg)
+        .await
+        .map_err(internal_server_error)?;
     match response.get_ref().code() {
         Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => Ok(()),
+        _ => Err(AppError::InternalServerError),
     }
 }
 
@@ -66,33 +74,32 @@ pub async fn remove_post(
         login: find_user_by_token(pool.as_ref(), &headers).await?,
         id,
     };
-    let response = client.lock().await.remove_post(arg).await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let response = client
+        .lock()
+        .await
+        .remove_post(arg)
+        .await
+        .map_err(internal_server_error)?;
     match response.get_ref().code() {
         Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => Ok(()),
+        _ => Err(AppError::InternalServerError),
     }
 }
 
 pub async fn get_post(
-    headers: HeaderMap,
     Path(id): Path<u64>,
-    Extension(pool): Extension<Arc<PgPool>>,
     Extension(client): Extension<Arc<Mutex<GrpcClient>>>,
 ) -> Result<Json<Value>, AppError> {
-    let arg = grpc::RequestGetOne {
-        login: find_user_by_token(pool.as_ref(), &headers).await?,
-        id,
-    };
-    let response = client.lock().await.get_post(arg).await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let arg = grpc::RequestGetOne { id };
+    let response = client
+        .lock()
+        .await
+        .get_post(arg)
+        .await
+        .map_err(internal_server_error)?;
     match response.get_ref().code() {
-        Status::LoginMismatch => Err(AppError::AccessDenied),
         Status::PostNotFound => Err(AppError::PostNotFound),
         Status::Ok => {
             let post = response.get_ref().post.as_ref().expect("broken invariant");
@@ -102,34 +109,33 @@ pub async fn get_post(
                 "content": post.content,
             })))
         }
+        _ => Err(AppError::InternalServerError),
     }
 }
 
 pub async fn get_posts(
-    headers: HeaderMap,
-    Extension(pool): Extension<Arc<PgPool>>,
     Extension(client): Extension<Arc<Mutex<GrpcClient>>>,
     Query(params): Query<restapi::PostsRange>,
 ) -> Result<Json<Value>, AppError> {
     let arg = grpc::RequestGetMany {
-        login: find_user_by_token(pool.as_ref(), &headers).await?,
+        login: params.login,
         start_id: params.start_id,
         count: params.count,
     };
-    let response = client.lock().await.get_posts(arg).await.map_err(|err| {
-        eprintln!("Error: {:?}", err);
-        AppError::InternalServerError
-    })?;
+    let response = client
+        .lock()
+        .await
+        .get_posts(arg)
+        .await
+        .map_err(internal_server_error)?;
     match response.get_ref().code() {
-        Status::LoginMismatch => Err(AppError::AccessDenied),
-        Status::PostNotFound => Err(AppError::PostNotFound),
+        Status::UserNotFound => Err(AppError::UserNotFound),
         Status::Ok => {
             let posts = response.get_ref().posts.clone();
             Ok(Json(json!(posts
                 .iter()
                 .map(|post| {
                     json!({
-                        "login": post.login,
                         "id": post.id,
                         "created_at": post.created_at.as_ref().expect("broken invariant").to_string(),
                         "content": post.content,
@@ -137,6 +143,7 @@ pub async fn get_posts(
                 })
                 .collect::<Vec<_>>())))
         }
+        _ => Err(AppError::InternalServerError),
     }
 }
 
@@ -153,6 +160,7 @@ mod restapi {
 
     #[derive(serde::Deserialize)]
     pub struct PostsRange {
+        pub login: String,
         pub start_id: u64,
         pub count: u64,
     }

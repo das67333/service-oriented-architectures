@@ -3,40 +3,66 @@ version: '3.8'
 services:
   auth_db:
     image: postgres:16-alpine
-    restart: on-failure
     environment:
-      POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
 
   posts_db:
     image: postgres:16-alpine
-    restart: on-failure
     environment:
-      POSTGRES_USER: ${POSTS_DB_USER}
       POSTGRES_PASSWORD: ${POSTS_DB_PASSWORD}
 
-  auth: # Rust
+  stats_zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: "WARN"
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  stats_kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - stats_zookeeper
+    environment:
+      KAFKA_LOG4J_LOGGERS: org.apache.zookeeper=WARN,org.apache.kafka=WARN,kafka=WARN,kafka.cluster=WARN,kafka.controller=WARN,kafka.coordinator=WARN,kafka.log=WARN,kafka.server=WARN,kafka.zookeeper=WARN,state.change.logger=WARN
+
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: stats_zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://stats_kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  stats_clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    depends_on:
+      - stats_kafka
+
+  # Rust
+  auth:
     build: ./auth
-    restart: on-failure
     depends_on:
       - auth_db
       - posts
+      - stats_kafka
     environment:
-      AUTH_PORT: ${AUTH_PORT}
-      POSTS_GRPC_PORT: ${POSTS_GRPC_PORT}
-      AUTH_DB_USER: ${AUTH_DB_USER}
+      RUST_LOG: INFO
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
-      AUTH_DB_HOST: auth_db
     ports:
-      - ${AUTH_PORT}:${AUTH_PORT}
+      - ${AUTH_PORT}:3000
 
-  posts: # Go
+  # Go
+  posts:
     build: ./posts
-    restart: on-failure
     depends_on:
       - posts_db
     environment:
-      POSTS_GRPC_PORT: ${POSTS_GRPC_PORT}
-      POSTS_DB_USER: ${POSTS_DB_USER}
       POSTS_DB_PASSWORD: ${POSTS_DB_PASSWORD}
-      POSTS_DB_HOST: posts_db
+
+  # Python
+  stats:
+    build: ./stats
+    depends_on:
+      - stats_clickhouse
+    environment:
+      STATS_PORT: ${STATS_PORT}
+    ports:
+      - ${STATS_PORT}:3000

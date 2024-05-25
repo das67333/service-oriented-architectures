@@ -213,6 +213,12 @@ paths:
             text/plain:
               schema:
                 type: string
+        '404':
+          description: Post not found
+          content:
+            text/plain:
+              schema:
+                type: string
         '500':
           description: Internal server error
           content:
@@ -245,6 +251,12 @@ paths:
             text/plain:
               schema:
                 type: string
+        '404':
+          description: Post not found
+          content:
+            text/plain:
+              schema:
+                type: string
         '500':
           description: Internal server error
           content:
@@ -260,8 +272,6 @@ paths:
           required: true
           schema:
             type: integer
-      security:
-        - BearerAuth: []
       responses:
         '200':
           description: OK
@@ -280,14 +290,8 @@ paths:
                   - login
                   - created_at
                   - content
-        '400':
-          description: Invalid token
-          content:
-            text/plain:
-              schema:
-                type: string
-        '403':
-          description: Access denied
+        '404':
+          description: Post not found
           content:
             text/plain:
               schema:
@@ -301,20 +305,23 @@ paths:
 
   /posts:
     get:
-      summary: Get a page of posts
+      summary: Get a specific user's page of posts
       parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+          description: User login
         - in: query
           name: start_id
           schema:
-            type: string
+            type: integer
           description: Id of the oldest post
         - in: query
           name: count
           schema:
             type: integer
           description: Number of posts
-      security:
-        - BearerAuth: []
       responses:
         '200':
           description: OK
@@ -325,8 +332,6 @@ paths:
                 items:
                   type: object
                   properties:
-                    login:
-                      type: string
                     id:
                       type: string
                     created_at:
@@ -334,24 +339,60 @@ paths:
                     content:
                       type: string
                   required:
-                    - login
                     - id
                     - created_at
                     - content
-        '400':
-          description: Invalid token
-          content:
-            text/plain:
-              schema:
-                type: string
-        '403':
-          description: Access denied
+        '404':
+          description: User not found
           content:
             text/plain:
               schema:
                 type: string
         '500':
           description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+
+  /view:
+    post:
+      summary: Like a post by its id
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+          description: Id of the post
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /like:
+    post:
+      summary: Like a post by its id
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+          description: Id of the post
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid token
           content:
             text/plain:
               schema:

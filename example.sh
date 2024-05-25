@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HOST=localhost:3000
+HOST=localhost:3001
 SJ="Content-Type: application/json"
 
 LOGIN=ben
@@ -32,23 +32,44 @@ done
 curl -s -X PUT $HOST/post/$POST_ID -H "$ST" -H "$SJ" -d "{ \"content\": \"GGo\" }"
 echo "Updated post with ID=$POST_ID"
 
+echo -n "Trying to update non-existent post with ID=$((POST_ID+1)): "
+curl -s -X PUT "$HOST/post/$((POST_ID+1))" -H "$ST" -H "$SJ" -d "{ \"content\": \"GGo\" }"
+echo
+
 # get post
 echo -n "Receive post with ID=$POST_ID: "
-curl -s -X GET $HOST/post/$POST_ID -H "$ST"
+curl -s -X GET $HOST/post/$POST_ID
 echo
 
 # remove post
 curl -s -X DELETE $HOST/post/$POST_ID -H "$ST"
 echo "Removed post with ID=$POST_ID"
 
-echo -n "Trying to receive post with ID=$POST_ID again: "
-curl -s -X GET $HOST/post/$POST_ID -H "$ST"
+echo -n "Trying to remove post with ID=$POST_ID again: "
+curl -s -X DELETE $HOST/post/$POST_ID -H "$ST"
 echo
 
-echo "Receive all posts:"
-curl -s -X GET "$HOST/posts?start_id=1&count=100" -H "$ST"
+echo -n "Trying to receive post with ID=$POST_ID again: "
+curl -s -X GET $HOST/post/$POST_ID
+echo
+
+echo "Receive all posts of current user:"
+curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=100"
 echo
 
 echo "First 2 posts:"
-curl -s -X GET "$HOST/posts?start_id=1&count=2" -H "$ST"
+curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=2"
 echo
+
+echo -n "Receive all posts of non-existent user: "
+curl -s -X GET "$HOST/posts?login=alien&start_id=1&count=100"
+echo
+
+curl -s -X POST "$HOST/post/$((POST_ID-1))/view" -H "$ST"
+echo "Viewed post with ID=$((POST_ID-1))"
+
+curl -s -X POST "$HOST/post/$POST_ID/like" -H "$ST"
+echo "Liked post with ID=$POST_ID"
+
+echo -n "Check stats service response: "
+curl -s -X GET http://localhost:3101/ -w "{http_code: %{http_code}}"

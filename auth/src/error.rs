@@ -11,6 +11,12 @@ pub enum AppError {
     UserAlreadyExits,
     PostNotFound,
     AccessDenied,
+    UserNotFound,
+}
+
+pub fn internal_server_error(err: impl std::fmt::Debug) -> AppError {
+    tracing::error!("Error: {:?}", err);
+    AppError::InternalServerError
 }
 
 impl IntoResponse for AppError {
@@ -18,7 +24,7 @@ impl IntoResponse for AppError {
         let (status, err_msg) = match self {
             Self::InternalServerError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "an internal server error occured",
+                "An internal server error occured",
             ),
             Self::InvalidToken => (StatusCode::BAD_REQUEST, "Invalid token"),
             Self::MissingCredential => (StatusCode::BAD_REQUEST, "Missing credential"),
@@ -28,6 +34,7 @@ impl IntoResponse for AppError {
             Self::UserAlreadyExits => (StatusCode::BAD_REQUEST, "User already exists"),
             Self::PostNotFound => (StatusCode::NOT_FOUND, "Post not found"),
             Self::AccessDenied => (StatusCode::FORBIDDEN, "Access denied"),
+            Self::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
         };
         (status, err_msg).into_response()
     }

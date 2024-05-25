@@ -1,7 +1,10 @@
 use axum::http::HeaderMap;
 use sqlx::{PgPool, Result};
 
-use crate::{error::AppError, models::Login};
+use crate::{
+    error::{internal_server_error, AppError},
+    models::Login,
+};
 
 pub async fn try_create_table(pool: &PgPool) -> Result<()> {
     // sqlx::query("DROP TABLE IF EXISTS users")
@@ -28,7 +31,10 @@ pub async fn try_create_table(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn find_user_by_token(pool: &PgPool, headers: &HeaderMap) -> Result<String, AppError> {
+pub async fn find_user_by_token<'a>(
+    e: impl sqlx::PgExecutor<'a>,
+    headers: &HeaderMap,
+) -> Result<String, AppError> {
     let token = headers
         .get("authorization")
         .ok_or(AppError::InvalidToken)?
@@ -39,12 +45,9 @@ pub async fn find_user_by_token(pool: &PgPool, headers: &HeaderMap) -> Result<St
     }
     let users = sqlx::query_as::<_, Login>("SELECT login FROM users WHERE token = $1 LIMIT 2")
         .bind(token)
-        .fetch_all(pool)
+        .fetch_all(e)
         .await
-        .map_err(|err| {
-            eprintln!("Error: {:?}", err);
-            AppError::InternalServerError
-        })?;
+        .map_err(internal_server_error)?;
 
     if users.is_empty() || users.len() > 1 {
         // >1 means token collision, user should request new token

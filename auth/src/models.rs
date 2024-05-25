@@ -13,7 +13,7 @@ pub struct CredentialsHashed {
 }
 
 #[derive(serde::Deserialize, sqlx::FromRow)]
-pub struct UpdateInput {
+pub struct UpdateProfileInput {
     pub first_name: String,
     pub last_name: String,
     pub birth_date: NaiveDate,

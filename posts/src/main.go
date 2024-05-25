@@ -21,15 +21,15 @@ type Server struct {
 }
 
 func connectDb() sqlx.DB {
-	const TIMEOUT = 100 * time.Millisecond
+	const INITIAL_TIMEOUT = 1_000 * time.Millisecond
+	const TIMEOUT_MULTIPLIER = 1.2
 
 	dsn := fmt.Sprintf(
-		"user=%s password=%s host=%s sslmode=disable",
-		os.Getenv("POSTS_DB_USER"),
+		"user=postgres password=%s host=posts_db sslmode=disable",
 		os.Getenv("POSTS_DB_PASSWORD"),
-		os.Getenv("POSTS_DB_HOST"),
 	)
 	var db *sqlx.DB
+	timeout := INITIAL_TIMEOUT
 	for {
 		try_db, err := sqlx.Connect("postgres", dsn)
 		if err == nil {
@@ -37,18 +37,19 @@ func connectDb() sqlx.DB {
 			break
 		}
 		log.Printf(
-			"Cannot connect to database: %v. Attempting to reconnect...",
+			"Cannot connect to database: \"%v\". Reconnecting in %.1f seconds...",
 			err,
+			timeout.Seconds(),
 		)
-		time.Sleep(TIMEOUT)
+		time.Sleep(timeout)
+		timeout = time.Duration(float64(timeout) * TIMEOUT_MULTIPLIER)
 	}
 	fmt.Println("Connected to the database")
 	return *db
 }
 
 func runGrpcServer(db *sqlx.DB) {
-	port := os.Getenv("POSTS_GRPC_PORT")
-	lis, err := net.Listen("tcp", ":"+port)
+	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
