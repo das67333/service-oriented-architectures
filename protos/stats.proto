@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package service_stats;
+
+import "google/protobuf/empty.proto";
+
+service ServiceStats {
+    rpc get_post_stats(PostId) returns (PostStats);
+    rpc get_top_posts(Category) returns (TopPosts);
+    rpc get_top_users(google.protobuf.Empty) returns (TopUsers);
+}
+
+message PostId {
+    uint64 value = 1;
+}
+
+enum StatCategory {
+    VIEWS = 0;
+    LIKES = 1;
+}
+
+message Category {
+    StatCategory value = 1;
+}
+
+message PostStats {
+    uint64 views = 1;
+    uint64 likes = 2;
+}
+
+message TopPost {
+    uint64 id = 1;
+    string login = 2;
+    uint64 count = 3;
+}
+
+message TopPosts {
+    repeated TopPost posts = 1;
+}
+
+message TopUser {
+    string login = 1;
+    uint64 likes = 2;
+}
+
+message TopUsers {
+    repeated TopUser users = 1;
+}

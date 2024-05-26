@@ -7,11 +7,11 @@ package service_posts;
 import "google/protobuf/timestamp.proto";
 
 service ServicePosts {
-    rpc create_post(RequestCreate) returns (PostId) {}
-    rpc update_post(RequestUpdate) returns (ReturnCode) {}
-    rpc remove_post(RequestRemove) returns (ReturnCode) {}
-    rpc get_post(RequestGetOne) returns (OptionalPost) {}
-    rpc get_posts(RequestGetMany) returns (Posts) {}
+    rpc create_post(RequestCreate) returns (PostId);
+    rpc update_post(RequestUpdate) returns (ReturnCode);
+    rpc remove_post(RequestRemove) returns (ReturnCode);
+    rpc get_post(RequestGetOne) returns (OptionalPost);
+    rpc get_posts(RequestGetMany) returns (Posts);
 }
 
 message RequestCreate {
@@ -41,7 +41,7 @@ message RequestGetMany {
 }
 
 message PostId {
-    uint64 id = 1;
+    uint64 value = 1;
 }
 
 enum Status {
