@@ -1,6 +1,12 @@
 name: Auth service
 
 on: [push, pull_request]
+  # push:
+  #   paths:
+  #     - 'auth/**'
+  # pull_request:
+  #   paths:
+  #     - 'auth/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -8,9 +14,18 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auth/
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.77.1
+      - name: Install protobuf-compiler
+        run: sudo apt-get install -y protobuf-compiler make g++
+      - name: Load rust cache
+        uses: Swatinem/rust-cache@v2
       - name: Run tests
-        working-directory: auth/
-        run: cargo test --verbose
+        run: cargo test
