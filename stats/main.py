@@ -47,15 +47,15 @@ def init_clickhouse():
 
 
 class Server(ServiceStatsServicer):
-    def __init__(self):
+    def __init__(self, clickhouse_db):
         super().__init__()
-        self._ch = init_clickhouse()
+        self._ch = clickhouse_db
 
     def get_post_stats(self, id: PostId, _context:  grpc.ServicerContext) -> PostStats:
         params = {'id': id.value}
 
-        views = self._ch.command('SELECT count(*) FROM views_consumer WHERE post_id = {id:UInt64}', parameters=params)
-        likes = self._ch.command('SELECT count(*) FROM likes_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        views = self._ch.command('SELECT COUNT(*) FROM views_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        likes = self._ch.command('SELECT COUNT(*) FROM likes_consumer WHERE post_id = {id:UInt64}', parameters=params)
         return PostStats(views=views, likes=likes)
 
     def get_top_posts(self, category: Category, _context:  grpc.ServicerContext) -> TopPosts:
@@ -91,7 +91,8 @@ class Server(ServiceStatsServicer):
 def main():
     logging.basicConfig(level=logging.INFO)
     server = grpc.server(ThreadPoolExecutor(max_workers=MAX_WORKERS))
-    add_ServiceStatsServicer_to_server(Server(), server)
+    ch = init_clickhouse()
+    add_ServiceStatsServicer_to_server(Server(ch), server)
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()
