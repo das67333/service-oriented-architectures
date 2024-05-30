@@ -31,6 +31,13 @@ pub async fn try_create_table(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+fn get_login_if_single(users: &[Login]) -> Result<String, AppError> {
+    if users.is_empty() || users.len() > 1 {
+        return Err(AppError::InvalidToken);
+    }
+    Ok(users[0].login.clone())
+}
+
 pub async fn find_user_by_token<'a>(
     e: impl sqlx::PgExecutor<'a>,
     headers: &HeaderMap,
@@ -49,9 +56,27 @@ pub async fn find_user_by_token<'a>(
         .await
         .map_err(internal_server_error)?;
 
-    if users.is_empty() || users.len() > 1 {
-        // >1 means token collision, user should request new token
-        return Err(AppError::InvalidToken);
+    // >1 means token collision, user should request new token
+    get_login_if_single(&users)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_login_if_single() {
+        let mut users = vec![];
+        assert!(get_login_if_single(&users).is_err());
+
+        users.push(Login {
+            login: "test_user1".to_owned(),
+        });
+        assert_eq!(get_login_if_single(&users).unwrap(), "test_user1");
+
+        users.push(Login {
+            login: "test_user2".to_owned(),
+        });
+        assert!(get_login_if_single(&users).is_err());
     }
-    Ok(users[0].login.clone())
 }
