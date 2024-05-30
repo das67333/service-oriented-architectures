@@ -48,22 +48,28 @@ func connectDb() sqlx.DB {
 	return *db
 }
 
-func runGrpcServer(db *sqlx.DB) {
+func RunGrpcServer(db *sqlx.DB) error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		return err
 	}
 	s := grpc.NewServer()
 	pb.RegisterServicePostsServer(s, &Server{db: *db})
 	log.Printf("gRPC server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		return err
 	}
+	return nil
 }
 
 func main() {
 	db := connectDb()
 	TryCreateTable(&db)
 	defer db.Close()
-	runGrpcServer(&db)
+	if err := RunGrpcServer(&db); err != nil {
+		log.Fatalf("Failed to run gRPC server: %v", err)
+	}
 }
