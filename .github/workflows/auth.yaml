@@ -27,5 +27,8 @@ jobs:
         run: sudo apt-get install -y protobuf-compiler make g++
       - name: Load rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: auth/
+          cache-on-failure: true
       - name: Run tests
         run: cargo test
