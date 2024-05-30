@@ -21,6 +21,7 @@ const TIMEOUT_MULTIPLIER: f64 = 1.2;
 pub struct App {
     db_url: String,
     posts_grpc_url: String,
+    stats_grpc_url: String,
     kafka_url: String,
     main_port: u16,
 }
@@ -39,6 +40,7 @@ impl App {
         Self {
             db_url: format!("postgres://postgres:{db_password}@auth_db/postgres"),
             posts_grpc_url: "http://posts:50051".to_owned(),
+            stats_grpc_url: "http://stats:50051".to_owned(),
             kafka_url: "stats_kafka:9092".to_owned(),
             main_port: 3000,
         }
@@ -51,13 +53,17 @@ impl App {
             .await
             .expect("Cannot create table");
 
-        let posts_grpc_client = create_grpc_client(&self.posts_grpc_url).await;
+        let channel = create_grpc_channel(&self.posts_grpc_url, "posts").await;
+        let posts_grpc_client = handlers::PostsGrpcClient::new(channel);
+
+        let channel = create_grpc_channel(&self.stats_grpc_url, "stats").await;
+        let stats_grpc_client = handlers::StatsGrpcClient::new(channel);
 
         let kafka_producer = create_kafka_producer(&self.kafka_url).await;
 
         let app = Router::new()
-            .route("/login", post(handlers::login))
             .route("/signup", post(handlers::signup))
+            .route("/login", post(handlers::login))
             .route("/profile", put(handlers::update_user))
             .route("/post", post(handlers::create_post))
             .route("/post/:id", put(handlers::update_post))
@@ -66,9 +72,13 @@ impl App {
             .route("/posts", get(handlers::get_posts))
             .route("/post/:id/view", post(handlers::view_post))
             .route("/post/:id/like", post(handlers::like_post))
+            .route("/stats/post/:id", get(handlers::get_post_stats))
+            .route("/stats/top_posts/:category", get(handlers::get_top_posts))
+            .route("/stats/top_users", get(handlers::get_top_users))
             .fallback(handlers::fallback)
             .layer(Extension(Arc::new(users_db_conn_pool)))
             .layer(Extension(Arc::new(Mutex::new(posts_grpc_client))))
+            .layer(Extension(Arc::new(Mutex::new(stats_grpc_client))))
             .layer(Extension(kafka_producer))
             .layer(
                 TraceLayer::new_for_http()
@@ -84,22 +94,22 @@ impl App {
     }
 }
 
-async fn create_grpc_client(grpc_url: &str) -> handlers::GrpcClient {
+async fn create_grpc_channel(grpc_url: &str, name: &str) -> tonic::transport::Channel {
     let mut timeout = INITIAL_TIMEOUT;
-
-    let channel = loop {
+    loop {
         match tonic::transport::Channel::from_shared(grpc_url.to_owned())
             .expect("Can't parse address")
             .connect()
             .await
         {
             Ok(pool) => {
-                tracing::info!("Connected to gRPC server");
+                tracing::info!("Connected to {} gRPC server", name);
                 break pool;
             }
             Err(err) => {
                 tracing::warn!(
-                    "Cannot connect to gRPC server: \"{}\". Reconnecting in {:.1} seconds...",
+                    "Cannot connect to {} gRPC server: \"{}\". Reconnecting in {:.1} seconds...",
+                    name,
                     err,
                     timeout.as_secs_f64()
                 );
@@ -107,8 +117,7 @@ async fn create_grpc_client(grpc_url: &str) -> handlers::GrpcClient {
                 timeout = Duration::from_secs_f64(timeout.as_secs_f64() * TIMEOUT_MULTIPLIER);
             }
         }
-    };
-    handlers::GrpcClient::new(channel)
+    }
 }
 
 async fn create_db_client(db_url: &str) -> sqlx::PgPool {

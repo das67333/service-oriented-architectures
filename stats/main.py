@@ -1,17 +1,19 @@
-from fastapi import FastAPI
-import asyncio
 import clickhouse_connect
+import grpc
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
+from stats_pb2 import *
+from stats_pb2_grpc import *
 
+
+MAX_WORKERS = 2
 INITIAL_TIMEOUT_SEC = 1.0
 POLLING_TIMEOUT_SEC = 3.0
 TIMEOUT_MULTIPLIER = 1.2
 
-logging.basicConfig(level=logging.INFO)
-app = FastAPI(debug=True)
 
-
-async def init_clickhouse():
+def init_clickhouse():
     timeout = INITIAL_TIMEOUT_SEC
     while True:
         try:
@@ -19,7 +21,7 @@ async def init_clickhouse():
             break
         except Exception as err:
             logging.warning(f'Cannot connect to Clickhouse: "{err}". Reconnecting in {timeout:.1f} seconds...')
-            await asyncio.sleep(timeout)
+            time.sleep(timeout)
             timeout *= TIMEOUT_MULTIPLIER
 
     # creating tables
@@ -44,24 +46,56 @@ async def init_clickhouse():
     return ch
 
 
-async def poll_clickhouse(ch):
-    while True:
-        for table in ('views_consumer', 'likes_consumer'):
-            try:
-                result = ch.query(f'SELECT * FROM {table} ORDER BY post_id, login')
-                logging.info(f'Table "{table}": {result.result_rows}')
-                await asyncio.sleep(POLLING_TIMEOUT_SEC)
-            except Exception as err:
-                logging.error(f"Failed to query table {table}: {err}")
-                exit(1)
+class Server(ServiceStatsServicer):
+    def __init__(self):
+        super().__init__()
+        self._ch = init_clickhouse()
 
-async def main():
-    ch = await init_clickhouse()
-    await poll_clickhouse(ch)
+    def get_post_stats(self, id: PostId, _context:  grpc.ServicerContext) -> PostStats:
+        params = {'id': id.value}
+
+        views = self._ch.command('SELECT count(*) FROM views_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        likes = self._ch.command('SELECT count(*) FROM likes_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        return PostStats(views=views, likes=likes)
+
+    def get_top_posts(self, category: Category, _context:  grpc.ServicerContext) -> TopPosts:
+        match category.value:
+            case StatCategory.VIEWS:
+                topic = 'views'
+            case StatCategory.LIKES:
+                topic = 'likes'
+            case _:
+                raise ValueError(f'Unknown category: {category.value}')
+        result = self._ch.query(f'''
+            SELECT post_id, login, COUNT(*) as cnt
+            FROM {topic}_stats
+            GROUP BY post_id, login
+            ORDER BY cnt DESC
+            LIMIT 5
+        ''')
+        posts = [TopPost(id=row[0], login=row[1], count=row[2]) for row in result.result_rows]
+        return TopPosts(posts=posts)
+
+    def get_top_users(self, _empty, _context:  grpc.ServicerContext) -> TopUsers:
+        result = self._ch.query(f'''
+            SELECT login, COUNT(*) as total_likes
+            FROM likes_stats
+            GROUP BY login
+            ORDER BY total_likes DESC
+            LIMIT 3
+        ''')
+        users = [TopUser(login=row[0], likes=row[1]) for row in result.result_rows]
+        return TopUsers(users=users)
 
 
-@app.get("/")
-def always_ok():
-    return 'OK'
+def main():
+    logging.basicConfig(level=logging.INFO)
+    server = grpc.server(ThreadPoolExecutor(max_workers=MAX_WORKERS))
+    add_ServiceStatsServicer_to_server(Server(), server)
+    server.add_insecure_port('[::]:50051')
+    server.start()
+    server.wait_for_termination()
 
-asyncio.create_task(main())
+
+if __name__ == '__main__':
+    main()

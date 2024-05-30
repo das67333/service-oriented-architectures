@@ -39,7 +39,7 @@ func (s *Server) CreatePost(ctx context.Context, data *pb.RequestCreate) (*pb.Po
 	if err != nil {
 		return nil, err
 	}
-	return &pb.PostId{Id: uint64(id)}, nil
+	return &pb.PostId{Value: uint64(id)}, nil
 }
 
 func (s *Server) UpdatePost(ctx context.Context, data *pb.RequestUpdate) (*pb.ReturnCode, error) {

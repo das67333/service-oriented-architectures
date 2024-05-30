@@ -356,15 +356,15 @@ paths:
                 type: string
 
 
-  /view:
+  /post/{id}/view:
     post:
-      summary: Like a post by its id
+      summary: View a post by its id
       parameters:
-        - in: query
+        - in: path
           name: id
+          required: true
           schema:
             type: integer
-          description: Id of the post
       security:
         - BearerAuth: []
       responses:
@@ -377,15 +377,15 @@ paths:
               schema:
                 type: string
 
-  /like:
+  /post/{id}/like:
     post:
       summary: Like a post by its id
       parameters:
-        - in: query
+        - in: path
           name: id
+          required: true
           schema:
             type: integer
-          description: Id of the post
       security:
         - BearerAuth: []
       responses:
@@ -397,3 +397,82 @@ paths:
             text/plain:
               schema:
                 type: string
+
+  /stats/post/{id}:
+    get:
+      summary: Get post's views and likes count
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  views:
+                    type: integer
+                  likes:
+                    type: integer
+                required:
+                  - id
+                  - views
+                  - likes
+
+  /stats/top_posts/{category}:
+    get:
+      summary: Get top 5 posts by category (views or likes)
+      parameters:
+        - in: path
+          name: category
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    login:
+                      type: integer
+                    count:
+                      type: integer
+                  required:
+                    - id
+                    - login
+                    - count
+
+  /stats/top_users:
+    get:
+      summary: Get top 3 users by total number of likes on their posts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    login:
+                      type: string
+                    likes:
+                      type: integer
+                  required:
+                    - login
+                    - likes

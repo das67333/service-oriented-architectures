@@ -12,6 +12,7 @@ pub enum AppError {
     PostNotFound,
     AccessDenied,
     UserNotFound,
+    InvalidCategory,
 }
 
 pub fn internal_server_error(err: impl std::fmt::Debug) -> AppError {
@@ -35,6 +36,7 @@ impl IntoResponse for AppError {
             Self::PostNotFound => (StatusCode::NOT_FOUND, "Post not found"),
             Self::AccessDenied => (StatusCode::FORBIDDEN, "Access denied"),
             Self::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
+            Self::InvalidCategory => (StatusCode::BAD_REQUEST, "Invalid category"),
         };
         (status, err_msg).into_response()
     }

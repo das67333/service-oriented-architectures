@@ -62,7 +62,3 @@ services:
     build: ./stats
     depends_on:
       - stats_clickhouse
-    environment:
-      STATS_PORT: ${STATS_PORT}
-    ports:
-      - ${STATS_PORT}:3000
