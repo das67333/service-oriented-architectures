@@ -1,12 +1,12 @@
-name: Stats service
+name: Stats service, unit tests
 
-on: [push, pull_request]
-  # push:
-  #   paths:
-  #     - 'stats/**'
-  # pull_request:
-  #   paths:
-  #     - 'stats/**'
+on:
+  push:
+    paths:
+      - 'stats/**'
+  pull_request:
+    paths:
+      - 'stats/**'
 
 permissions:
   contents: read

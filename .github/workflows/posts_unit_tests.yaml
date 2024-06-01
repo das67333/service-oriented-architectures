@@ -1,12 +1,12 @@
-name: Posts service
+name: Posts service, unit tests
 
-on: [push, pull_request]
-  # push:
-  #   paths:
-  #     - 'posts/**'
-  # pull_request:
-  #   paths:
-  #     - 'posts/**'
+on:
+  push:
+    paths:
+      - 'posts/**'
+  pull_request:
+    paths:
+      - 'posts/**'
 
 permissions:
   contents: read

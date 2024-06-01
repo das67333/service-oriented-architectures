@@ -1,3 +1,6 @@
+//go:build !service_tests
+// +build !service_tests
+
 package server
 
 import (

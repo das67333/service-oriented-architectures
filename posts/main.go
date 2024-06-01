@@ -35,14 +35,22 @@ func connectDb() sqlx.DB {
 		time.Sleep(timeout)
 		timeout = time.Duration(float64(timeout) * TIMEOUT_MULTIPLIER)
 	}
-	fmt.Println("Connected to the database")
+	log.Println("Connected to the database")
 	return *db
+}
+
+func initDb(db *sqlx.DB) {
+	s, err := os.ReadFile("init.sql")
+	if err != nil {
+		log.Fatalf("Failed to read init.sql: %v", err)
+	}
+	db.MustExec(string(s))
 }
 
 func main() {
 	db := connectDb()
 	defer db.Close()
-	server.InitDb(&db)
+	initDb(&db)
 	if err := server.RunGrpcServer(&db); err != nil {
 		log.Fatalf("Failed to run gRPC server: %v", err)
 	}
