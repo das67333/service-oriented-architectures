@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -6,20 +6,8 @@ import (
 	pb "service-posts/protos"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-func TryCreateTable(db *sqlx.DB) {
-	db.MustExec(`
-	CREATE TABLE IF NOT EXISTS posts (
-		login VARCHAR,
-		id SERIAL PRIMARY KEY,
-		created_at TIMESTAMP,
-		content VARCHAR
-	)`)
-}
 
 type Post struct {
 	Login     string    `db:"login"`

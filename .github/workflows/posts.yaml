@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: posts/src/
+        working-directory: posts/
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -24,4 +24,4 @@ jobs:
         with:
           go-version: '1.22'
       - name: Run tests
-        run: go test -v
+        run: go test -v ./...
