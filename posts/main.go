@@ -42,7 +42,7 @@ func connectDb() sqlx.DB {
 func main() {
 	db := connectDb()
 	defer db.Close()
-	server.TryCreateTable(&db)
+	server.InitDb(&db)
 	if err := server.RunGrpcServer(&db); err != nil {
 		log.Fatalf("Failed to run gRPC server: %v", err)
 	}

@@ -11,5 +11,7 @@ RUN cargo build --release
 
 
 FROM debian:bookworm-slim
-COPY --from=builder /build/target/release/auth /app/auth
-CMD ["/app/auth"]
+WORKDIR /app
+COPY init.sql .
+COPY --from=builder /build/target/release/auth .
+CMD ["./auth"]

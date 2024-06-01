@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	pb "service-posts/protos"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc"
 )
 
-func TryCreateTable(db *sqlx.DB) {
-	db.MustExec(`
-	CREATE TABLE IF NOT EXISTS posts (
-		login VARCHAR,
-		id SERIAL PRIMARY KEY,
-		created_at TIMESTAMP,
-		content VARCHAR
-	)`)
+func InitDb(db *sqlx.DB) {
+	s, err := os.ReadFile("init.sql")
+	if err != nil {
+		log.Fatalf("Failed to read init.sql: %v", err)
+	}
+	db.MustExec(string(s))
 }
 
 type Server struct {

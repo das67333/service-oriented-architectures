@@ -20,28 +20,20 @@ def init_clickhouse():
             ch = clickhouse_connect.get_client(host='stats_clickhouse')
             break
         except Exception as err:
-            logging.warning(f'Cannot connect to Clickhouse: "{err}". Reconnecting in {timeout:.1f} seconds...')
+            logging.warning(
+                f'Cannot connect to Clickhouse: "{err}". Reconnecting in {timeout:.1f} seconds...')
             time.sleep(timeout)
             timeout *= TIMEOUT_MULTIPLIER
 
     # creating tables
-    for topic in ('views', 'likes'):
+    with open('init.sql') as f:
         try:
-            ch.command(f'''
-                CREATE TABLE IF NOT EXISTS {topic}_kafka (post_id UInt64, login String)
-                ENGINE = Kafka('stats_kafka:9092', '{topic}', '{topic}_group1', 'JSONEachRow');
-            ''')
-            ch.command(f'''
-                CREATE TABLE IF NOT EXISTS {topic}_stats (post_id UInt64, login String)
-                ENGINE = MergeTree()
-                ORDER BY post_id;
-            ''')
-            ch.command(f'''
-                CREATE MATERIALIZED VIEW IF NOT EXISTS {topic}_consumer TO {topic}_stats
-                AS SELECT * FROM {topic}_kafka;
-            ''')
+            for cmd in f.read().split(';'):
+                cmd = cmd.strip()
+                if cmd:
+                    ch.command(cmd)
         except Exception as err:
-            logging.error(f"Failed to execute commands for topic {topic}: {err}")
+            logging.error(f"Failed to execute command {cmd}: {err}")
             exit(1)
     return ch
 
@@ -54,8 +46,10 @@ class Server(ServiceStatsServicer):
     def get_post_stats(self, id: PostId, _context:  grpc.ServicerContext) -> PostStats:
         params = {'id': id.value}
 
-        views = self._ch.command('SELECT COUNT(*) FROM views_consumer WHERE post_id = {id:UInt64}', parameters=params)
-        likes = self._ch.command('SELECT COUNT(*) FROM likes_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        views = self._ch.command(
+            'SELECT COUNT(*) FROM views_consumer WHERE post_id = {id:UInt64}', parameters=params)
+        likes = self._ch.command(
+            'SELECT COUNT(*) FROM likes_consumer WHERE post_id = {id:UInt64}', parameters=params)
         return PostStats(views=views, likes=likes)
 
     def get_top_posts(self, category: Category, _context:  grpc.ServicerContext) -> TopPosts:
@@ -73,7 +67,8 @@ class Server(ServiceStatsServicer):
             ORDER BY cnt DESC
             LIMIT 5
         ''')
-        posts = [TopPost(id=row[0], login=row[1], count=row[2]) for row in result.result_rows]
+        posts = [TopPost(id=row[0], login=row[1], count=row[2])
+                 for row in result.result_rows]
         return TopPosts(posts=posts)
 
     def get_top_users(self, _empty, _context:  grpc.ServicerContext) -> TopUsers:
@@ -84,7 +79,8 @@ class Server(ServiceStatsServicer):
             ORDER BY total_likes DESC
             LIMIT 3
         ''')
-        users = [TopUser(login=row[0], likes=row[1]) for row in result.result_rows]
+        users = [TopUser(login=row[0], likes=row[1])
+                 for row in result.result_rows]
         return TopUsers(users=users)
 
 

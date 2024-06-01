@@ -49,7 +49,7 @@ impl App {
     pub async fn run(&self) {
         let users_db_conn_pool = create_db_client(&self.db_url).await;
 
-        handlers::util::try_create_table(&users_db_conn_pool)
+        handlers::util::init_db(&users_db_conn_pool)
             .await
             .expect("Cannot create table");
 
