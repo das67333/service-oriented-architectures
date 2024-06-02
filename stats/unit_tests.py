@@ -7,22 +7,14 @@ class MockDb:
     def __init__(self, return_values: list = []):
         self._return_values = return_values[::-1]
 
-    def command(self, *args, **kwargs):
-        return self._return_values.pop()
-
-    def query(self, *args, **kwargs):
+    def execute(self, *args, **kwargs):
         return self._return_values.pop()
 
 
-class MockQueryResult:
-    def __init__(self, result_rows: list = []):
-        self.result_rows = result_rows[:]
-
-
-class TestServer(unittest.TestCase):
+class TestServerUnit(unittest.TestCase):
     def test_get_post_stats(self):
         views, likes = randint(0, 1000), randint(0, 1000)
-        serv = Server(MockDb([views, likes]))
+        serv = Server(MockDb([[[views]], [[likes]]]))
         id = PostId(value=randint(0, 1000))
         stats = serv.get_post_stats(id, None)
         self.assertEqual(stats.views, views)
@@ -31,7 +23,7 @@ class TestServer(unittest.TestCase):
     def test_get_top_posts(self):
         results = [[randint(0, 1000), str(randint(0, 1000)), randint(0, 1000)]
                    for _ in range(5)]
-        serv = Server(MockDb([MockQueryResult(results)]))
+        serv = Server(MockDb([results]))
         posts = serv.get_top_posts(
             Category(value=StatCategory.VIEWS), None).posts
         for post, result in zip(posts, results, strict=True):
@@ -41,7 +33,7 @@ class TestServer(unittest.TestCase):
 
         results = [[randint(0, 1000), str(randint(0, 1000)), randint(0, 1000)]
                    for _ in range(5)]
-        serv = Server(MockDb([MockQueryResult(results)]))
+        serv = Server(MockDb([results]))
         posts = serv.get_top_posts(
             Category(value=StatCategory.LIKES), None).posts
         for post, result in zip(posts, results, strict=True):
@@ -55,7 +47,7 @@ class TestServer(unittest.TestCase):
 
     def test_get_top_users(self):
         results = [[str(randint(0, 1000)), randint(0, 1000)] for _ in range(5)]
-        serv = Server(MockDb([MockQueryResult(results)]))
+        serv = Server(MockDb([results]))
 
         users = serv.get_top_users(None, None).users
         for post, result in zip(users, results, strict=True):
