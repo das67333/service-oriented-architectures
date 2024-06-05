@@ -1,0 +1,2 @@
+testcontainers==4.5.1
+confluent-kafka==2.4.0

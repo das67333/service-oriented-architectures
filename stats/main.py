@@ -56,10 +56,10 @@ class Server(ServiceStatsServicer):
         params = {'id': id.value}
 
         views = self._db.execute(
-            'SELECT COUNT(*) FROM views_consumer WHERE post_id = %(id)s', params=params
+            'SELECT COUNT(*) FROM views_stats WHERE post_id = %(id)s', params=params
         )[0][0]
         likes = self._db.execute(
-            'SELECT COUNT(*) FROM likes_consumer WHERE post_id = %(id)s', params=params
+            'SELECT COUNT(*) FROM likes_stats WHERE post_id = %(id)s', params=params
         )[0][0]
         return PostStats(views=views, likes=likes)
 
@@ -103,7 +103,6 @@ def main():
     add_ServiceStatsServicer_to_server(Server(db), server)
     server.add_insecure_port('[::]:50051')
     server.start()
-    print('hi')
     server.wait_for_termination()
 
 

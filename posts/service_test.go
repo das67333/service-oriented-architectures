@@ -96,5 +96,5 @@ func TestCreatePost(t *testing.T) {
 	if post.Content != "test_content" {
 		t.Fatalf("expected content: test_content, got: %s", post.Content)
 	}
-	db.MustExecContext(ctx, "DELETE FROM posts")
+	db.MustExecContext(ctx, "TRUNCATE TABLE posts")
 }

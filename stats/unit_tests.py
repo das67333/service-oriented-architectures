@@ -11,7 +11,7 @@ class MockDb:
         return self._return_values.pop()
 
 
-class TestServerUnit(unittest.TestCase):
+class UnitTests(unittest.TestCase):
     def test_get_post_stats(self):
         views, likes = randint(0, 1000), randint(0, 1000)
         serv = Server(MockDb([[[views]], [[likes]]]))
