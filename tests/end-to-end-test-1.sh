@@ -1,105 +1,125 @@
 #!/bin/bash
 
-cd ..
-docker-compose up --build -d
+set_up() {
+    # interrupt the script if any command returns a non-zero exit code
+    set -e
+    # call tear_down function on exit
+    trap tear_down EXIT
 
-HOST=localhost:3001
-SJ="Content-Type: application/json"
+    cd ..
+    docker-compose up --build -d
+    sleep 5
+}
 
-# if there is a command-line argument, then use it as LOGIN; if no, use ben
-if [ -n "$1" ]; then
-    LOGIN=$1
-else
-    LOGIN=ben
-fi
-PASSWORD=big
+tear_down() {
+    set +e
+    docker-compose down
+}
 
-FIRST_NAME=Ben
-LAST_NAME=Big
-BIRTH_DATE="2012-04-23"
-EMAIL=hcenquiries@parliament.uk
-PHONE="0800 112 4272"
+run() {
+    # print the line number of the failed command
+    trap 'echo "Test failed on line $LINENO"' ERR
 
-curl -s -X POST $HOST/signup -H "$SJ" -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }"
+    HOST=localhost:3001
+    SJ="Content-Type: application/json"
 
-TOKEN=$(curl -s -X POST $HOST/login -H "$SJ" -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }" | jq -r ".token")
-echo "Login, TOKEN=$TOKEN"
-ST="Authorization: $TOKEN"
+    # if there is a command-line argument, then use it as LOGIN; if no, use ben
+    if [ -n "$1" ]; then
+        LOGIN=$1
+    else
+        LOGIN=ben
+    fi
+    PASSWORD=big
 
-curl -s -X PUT $HOST/profile -H "$ST" -H "$SJ" -d "{ \"first_name\": \"$FIRST_NAME\", \"last_name\": \"$LAST_NAME\", \"birth_date\": \"$BIRTH_DATE\", \"email\": \"$EMAIL\", \"phone\": \"$PHONE\" }"
-echo "Updated user data"
+    FIRST_NAME=Ben
+    LAST_NAME=Big
+    BIRTH_DATE="2012-04-23"
+    EMAIL=hcenquiries@parliament.uk
+    PHONE="0800 112 4272"
 
-# create posts
-for i in {1..10}; do
-    CONTENT=$((i*i))
-    POST_ID=$(curl -s -X POST $HOST/post -H "$ST" -H "$SJ" -d "{ \"content\": \"$CONTENT\" }" | jq -r ".post_id")
-    for i in $(seq 1 $((i))); do
-        curl -s -X POST "$HOST/post/$POST_ID/view" -H "$ST"
-        curl -s -X POST "$HOST/post/$POST_ID/like" -H "$ST"
-    done
-    echo "Created post with ID=$POST_ID and CONTENT=\"$CONTENT\", viewed and liked it $i times"
-done
+    response=$(curl -s -X POST $HOST/signup -H "$SJ" -w "%{http_code}" \
+            -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }")
+    if [[ $response != "200" ]]; then
+        echo "Failed to sign up" && false
+    fi
 
-# update post
-curl -s -X PUT $HOST/post/$POST_ID -H "$ST" -H "$SJ" -d "{ \"content\": \"GGo\" }"
-echo "Updated post with ID=$POST_ID"
+    TOKEN=$(curl -s -X POST $HOST/login -H "$SJ" \
+            -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }" \
+            | jq -r ".token")
+    echo "TOKEN=$TOKEN"
+    if [[ -z "$TOKEN" ]]; then
+        echo "Failed to login" && false
+    fi
+    ST="Authorization: $TOKEN"
 
-echo -n "Trying to update non-existent post with ID=$((POST_ID+1)): "
-curl -s -X PUT "$HOST/post/$((POST_ID+1))" -H "$ST" -H "$SJ" -d "{ \"content\": \"GGo\" }"
-echo
+    response=$(curl -s -X PUT $HOST/profile -H "$ST" -H "$SJ" -w "%{http_code}" \
+            -d "{ \"first_name\": \"$FIRST_NAME\", \"last_name\": \"$LAST_NAME\",
+            \"birth_date\": \"$BIRTH_DATE\", \"email\": \"$EMAIL\",
+            \"phone\": \"$PHONE\" }")
+    if [[ $response != "200" ]]; then
+        echo "Update user data failed" && false
+    fi
 
-# get post
-echo -n "Receive post with ID=$POST_ID: "
-curl -s -X GET $HOST/post/$POST_ID
-echo
+    CONTENT="Hello world!"
+    POST_ID=$(curl -s -X POST $HOST/post -H "$ST" -H "$SJ" \
+            -d "{ \"content\": \"$CONTENT\" }" | jq -r ".post_id")
+    if [[ -z "$POST_ID" ]]; then
+        echo "Create post failed" && false
+    fi
 
-# remove post
-curl -s -X DELETE $HOST/post/$POST_ID -H "$ST"
-echo "Removed post with ID=$POST_ID"
+    response=$(curl -s -X GET $HOST/post/$POST_ID | jq -r ".content")
+    if [[ $response != $CONTENT ]]; then
+        echo "Get post failed" && false
+    fi
 
-echo -n "Trying to remove post with ID=$POST_ID again: "
-curl -s -X DELETE $HOST/post/$POST_ID -H "$ST"
-echo
+    response=$(curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=100" | jq -r ".[0].content")
+    if [[ $response != $CONTENT ]]; then
+        echo "Get all posts failed" && false
+    fi
 
-echo -n "Trying to receive post with ID=$POST_ID again: "
-curl -s -X GET $HOST/post/$POST_ID
-echo
+    response=$(curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=2" | jq -r ".[0].content")
+    if [[ $response != $CONTENT ]]; then
+        echo "Get first 2 posts failed" && false
+    fi
 
-echo "Receive all posts of current user:"
-curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=100"
-echo
+    response=$(curl -s -X GET "$HOST/posts?login=alien&start_id=1&count=100" -w "%{http_code}")
+    if [[ ${response: -3} != "404" ]]; then
+        echo "Get posts of non-existent user should return 404" && false
+    fi
 
-echo "First 2 posts:"
-curl -s -X GET "$HOST/posts?login=$LOGIN&start_id=1&count=2"
-echo
+    CONTENT="Let's go"
+    response=$(curl -s -X PUT $HOST/post/$POST_ID -H "$ST" -H "$SJ" -w "%{http_code}" \
+            -d "{ \"content\": \"$CONTENT\" }")
+    if [[ $response != "200" ]]; then
+        echo "Update post failed" && false
+    fi
 
-echo -n "Receive all posts of non-existent user: "
-curl -s -X GET "$HOST/posts?login=alien&start_id=1&count=100"
-echo
+    response=$(curl -s -X PUT "$HOST/post/$((POST_ID+1))" -H "$ST" -H "$SJ" -w "%{http_code}" \
+            -d "{ \"content\": \"CONTENT\" }")
+    if [[ ${response: -3} != "404" ]]; then
+        echo "Update non-existent post should return 404" && false
+    fi
 
-curl -s -X POST "$HOST/post/$POST_ID/view" -H "$ST"
-echo "Viewed post with ID=$POST_ID"
+    response=$(curl -s -X GET $HOST/post/$POST_ID | jq -r ".content")
+    if [[ $response != $CONTENT ]]; then
+        echo "Get post failed" && false
+    fi
 
-curl -s -X POST "$HOST/post/$POST_ID/like" -H "$ST"
-echo "Liked post with ID=$POST_ID"
+    response=$(curl -s -X DELETE $HOST/post/$POST_ID -H "$ST" -w "%{http_code}")
+    if [[ $response != "200" ]]; then
+        echo "Remove post failed" && false
+    fi
 
-sleep 5
-echo "Let's test stats service"
+    response=$(curl -s -X GET $HOST/post/$POST_ID -w "%{http_code}")
+    if [[ ${response: -3} != "404" ]]; then
+        echo "Get non-existent post should return 404" && false
+    fi
 
-echo -n "Stats of the last post: "
-curl -s -X GET "$HOST/stats/post/$POST_ID"
-echo
+    response=$(curl -s -X DELETE $HOST/post/$POST_ID -H "$ST" -w "%{http_code}")
+    if [[ ${response: -3} != "404" ]]; then
+        echo "Remove non-existent post should return 404" && false
+    fi
+}
 
-echo -n "Top 5 posts by views: "
-curl -s -X GET "$HOST/stats/top_posts/views"
-echo
-
-echo -n "Top 5 posts by likes: "
-curl -s -X GET "$HOST/stats/top_posts/likes"
-echo
-
-echo -n "Top 3 users by total likes: "
-curl -s -X GET "$HOST/stats/top_users"
-echo
-
-docker-compose down
+set_up
+run
