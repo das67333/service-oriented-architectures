@@ -11,7 +11,6 @@ pub enum AppError {
     UserAlreadyExits,
     PostNotFound,
     AccessDenied,
-    UserNotFound,
     InvalidCategory,
 }
 
@@ -30,7 +29,6 @@ impl AppError {
             Self::UserAlreadyExits => (StatusCode::BAD_REQUEST, "User already exists"),
             Self::PostNotFound => (StatusCode::NOT_FOUND, "Post not found"),
             Self::AccessDenied => (StatusCode::FORBIDDEN, "Access denied"),
-            Self::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
             Self::InvalidCategory => (StatusCode::BAD_REQUEST, "Invalid category"),
         };
         (status, err_msg)
@@ -64,7 +62,6 @@ mod tests {
             AppError::UserAlreadyExits,
             AppError::PostNotFound,
             AppError::AccessDenied,
-            AppError::UserNotFound,
             AppError::InvalidCategory,
         ] {
             let (code, msg) = err.get_code_and_message();

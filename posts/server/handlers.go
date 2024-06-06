@@ -113,7 +113,7 @@ func (s *Server) GetPosts(ctx context.Context, data *pb.RequestGetMany) (*pb.Pos
 	var any_id uint64
 	err = tx.GetContext(ctx, &any_id, "SELECT id FROM posts WHERE login = $1 LIMIT 1", data.Login)
 	if err != nil {
-		return &pb.Posts{Code: pb.Status_UserNotFound}, nil
+		return &pb.Posts{Code: pb.Status_PostNotFound}, nil
 	}
 	var posts []*Post
 	err = tx.SelectContext(ctx, &posts, `

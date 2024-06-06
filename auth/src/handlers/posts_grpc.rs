@@ -129,7 +129,7 @@ pub async fn get_posts(
         .await
         .map_err(internal_server_error)?;
     match response.get_ref().code() {
-        grpc::Status::UserNotFound => Err(AppError::UserNotFound),
+        grpc::Status::PostNotFound => Err(AppError::PostNotFound),
         grpc::Status::Ok => {
             let posts = response.get_ref().posts.clone();
             Ok(Json(json!(posts

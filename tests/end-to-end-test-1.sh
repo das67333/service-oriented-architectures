@@ -1,5 +1,8 @@
 #!/bin/bash
 
+cd ..
+docker-compose up --build -d
+
 HOST=localhost:3001
 SJ="Content-Type: application/json"
 
@@ -18,7 +21,6 @@ EMAIL=hcenquiries@parliament.uk
 PHONE="0800 112 4272"
 
 curl -s -X POST $HOST/signup -H "$SJ" -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }"
-echo Signup
 
 TOKEN=$(curl -s -X POST $HOST/login -H "$SJ" -d "{ \"login\": \"$LOGIN\", \"password\": \"$PASSWORD\" }" | jq -r ".token")
 echo "Login, TOKEN=$TOKEN"
@@ -99,3 +101,5 @@ echo
 echo -n "Top 3 users by total likes: "
 curl -s -X GET "$HOST/stats/top_users"
 echo
+
+docker-compose down
