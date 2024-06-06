@@ -3,22 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"os"
+	"service-posts/server"
 	"time"
-
-	pb "service-posts/protos"
-
-	grpc "google.golang.org/grpc"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
-
-type Server struct {
-	pb.UnimplementedServicePostsServer
-	db sqlx.DB
-}
 
 func connectDb() sqlx.DB {
 	const INITIAL_TIMEOUT = 1_000 * time.Millisecond
@@ -44,26 +35,23 @@ func connectDb() sqlx.DB {
 		time.Sleep(timeout)
 		timeout = time.Duration(float64(timeout) * TIMEOUT_MULTIPLIER)
 	}
-	fmt.Println("Connected to the database")
+	log.Println("Connected to the database")
 	return *db
 }
 
-func runGrpcServer(db *sqlx.DB) {
-	lis, err := net.Listen("tcp", ":50051")
+func initDb(db *sqlx.DB) {
+	s, err := os.ReadFile("init.sql")
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("Failed to read init.sql: %v", err)
 	}
-	s := grpc.NewServer()
-	pb.RegisterServicePostsServer(s, &Server{db: *db})
-	log.Printf("gRPC server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	db.MustExec(string(s))
 }
 
 func main() {
 	db := connectDb()
-	TryCreateTable(&db)
 	defer db.Close()
-	runGrpcServer(&db)
+	initDb(&db)
+	if err := server.RunGrpcServer(&db); err != nil {
+		log.Fatalf("Failed to run gRPC server: %v", err)
+	}
 }

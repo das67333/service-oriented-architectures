@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -6,20 +6,8 @@ import (
 	pb "service-posts/protos"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-func TryCreateTable(db *sqlx.DB) {
-	db.MustExec(`
-	CREATE TABLE IF NOT EXISTS posts (
-		login VARCHAR,
-		id SERIAL PRIMARY KEY,
-		created_at TIMESTAMP,
-		content VARCHAR
-	)`)
-}
 
 type Post struct {
 	Login     string    `db:"login"`
@@ -30,7 +18,7 @@ type Post struct {
 
 func (s *Server) CreatePost(ctx context.Context, data *pb.RequestCreate) (*pb.PostId, error) {
 	var id uint64
-	err := s.db.GetContext(ctx, &id, `
+	err := s.Db.GetContext(ctx, &id, `
 	INSERT INTO posts (login, created_at, content)
 	VALUES ($1, NOW(), $2)
 	RETURNING id`,
@@ -43,7 +31,7 @@ func (s *Server) CreatePost(ctx context.Context, data *pb.RequestCreate) (*pb.Po
 }
 
 func (s *Server) UpdatePost(ctx context.Context, data *pb.RequestUpdate) (*pb.ReturnCode, error) {
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.Db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +59,7 @@ func (s *Server) UpdatePost(ctx context.Context, data *pb.RequestUpdate) (*pb.Re
 }
 
 func (s *Server) RemovePost(ctx context.Context, data *pb.RequestRemove) (*pb.ReturnCode, error) {
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.Db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +87,7 @@ func (s *Server) RemovePost(ctx context.Context, data *pb.RequestRemove) (*pb.Re
 
 func (s *Server) GetPost(ctx context.Context, data *pb.RequestGetOne) (*pb.OptionalPost, error) {
 	var post Post
-	err := s.db.GetContext(ctx, &post, "SELECT * FROM posts WHERE id = $1", data.Id)
+	err := s.Db.GetContext(ctx, &post, "SELECT * FROM posts WHERE id = $1", data.Id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return &pb.OptionalPost{Code: pb.Status_PostNotFound}, nil
@@ -116,7 +104,7 @@ func (s *Server) GetPost(ctx context.Context, data *pb.RequestGetOne) (*pb.Optio
 }
 
 func (s *Server) GetPosts(ctx context.Context, data *pb.RequestGetMany) (*pb.Posts, error) {
-	tx, err := s.db.BeginTxx(ctx, nil)
+	tx, err := s.Db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +113,7 @@ func (s *Server) GetPosts(ctx context.Context, data *pb.RequestGetMany) (*pb.Pos
 	var any_id uint64
 	err = tx.GetContext(ctx, &any_id, "SELECT id FROM posts WHERE login = $1 LIMIT 1", data.Login)
 	if err != nil {
-		return &pb.Posts{Code: pb.Status_UserNotFound}, nil
+		return &pb.Posts{Code: pb.Status_PostNotFound}, nil
 	}
 	var posts []*Post
 	err = tx.SelectContext(ctx, &posts, `

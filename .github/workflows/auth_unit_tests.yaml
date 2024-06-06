@@ -1,0 +1,34 @@
+name: Auth service, unit tests
+
+on:
+  push:
+    paths:
+      - 'auth/**'
+  pull_request:
+    paths:
+      - 'auth/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auth/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.77.1
+      - name: Install protobuf-compiler
+        run: sudo apt-get install -y protobuf-compiler make g++
+      - name: Load rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: auth/
+          cache-on-failure: true
+      - name: Run tests
+        run: cargo test

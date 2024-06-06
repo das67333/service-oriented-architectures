@@ -343,7 +343,7 @@ paths:
                     - created_at
                     - content
         '404':
-          description: User not found
+          description: Posts not found
           content:
             text/plain:
               schema:
