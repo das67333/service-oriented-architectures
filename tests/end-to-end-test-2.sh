@@ -66,7 +66,7 @@ run() {
         done
     done
 
-    sleep 5
+    sleep 10
 
     response=$(curl -s -X GET "$HOST/stats/post/$POST_ID" | jq -c '[.views, .likes]')
     if [[ $response != "[15,12]" ]]; then
